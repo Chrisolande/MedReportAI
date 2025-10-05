@@ -1,0 +1,39 @@
+[project]
+name = "research"
+version = "0.1.0"
+description = "PubMed research tools"
+requires-python = ">=3.12"
+dependencies = [
+    "pandas-stubs==2.3.0.250703",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=25.1.0",
+    "isort>=5.13.0",
+    "autoflake>=2.0.0",
+    "mypy>=1.8.0",
+    "nbqa>=1.8.0",
+    "ruff>=0.6.0",
+]
+
+# Black
+[tool.black]
+line-length = 88
+target-version = ['py312']
+
+# isort
+[tool.isort]
+profile = "black"
+
+# autoflake
+[tool.autoflake]
+in-place = true
+remove-all-unused-imports = true
+remove-unused-variables = true
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+ignore = ["F841", "F704"]
