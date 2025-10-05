@@ -1,3 +1,4 @@
 .env
 .vincent/
 .vscode/
+.ruff_cache/

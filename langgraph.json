@@ -1,0 +1,9 @@
+{
+    "graphs": {
+        "agent": "/home/chris-olande/PycharmProjects/Report-Gen/app.py:graph"
+    },
+    "dependencies": [
+        "langchain",
+        "langchain-deepseek"
+    ]
+}
