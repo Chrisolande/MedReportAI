@@ -1,13 +1,27 @@
+import ast
+import os
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import pandas as pd
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models import BaseLanguageModel
+from langchain_deepseek import ChatDeepSeek
 from loguru import logger
+from ragas import evaluate
 from ragas.dataset_schema import EvaluationDataset
 from ragas.embeddings.base import LangchainEmbeddingsWrapper
 from ragas.llms import LangchainLLMWrapper
+from ragas.metrics import (
+    AnswerSimilarity,
+    ContextEntityRecall,
+    ContextPrecision,
+    ContextRecall,
+    Faithfulness,
+    NoiseSensitivity,
+)
+from ragas.run_config import RunConfig
 from ragas.testset import TestsetGenerator
 from ragas.testset.synthesizers.multi_hop.abstract import (
     MultiHopAbstractQuerySynthesizer,
@@ -130,3 +144,134 @@ def create_evaluation_dataset(
     ].to_dict(orient="records")
 
     return EvaluationDataset.from_list(eval_data)
+
+
+@dataclass
+class RAGEvaluator:
+    """RAG Evaluation pipeline for model-embedding pairs."""
+
+    max_workers: int = 1
+    timeout: int = 180
+    generative_models: list[str] = field(default_factory=lambda: ["deepseek-chat"])
+    embedding_models: list[str] = field(default_factory=lambda: ["fastembed"])
+    metrics: list = field(
+        default_factory=lambda: [
+            ContextRecall(),
+            ContextPrecision(),
+            AnswerSimilarity(),
+            ContextEntityRecall(),
+            NoiseSensitivity(),
+            Faithfulness(),
+        ]
+    )
+    run_config: RunConfig = field(init=False)
+
+    def __post_init__(self):
+        """Initialize RunConfig after dataclass initialization."""
+        self.run_config = RunConfig(max_workers=self.max_workers, timeout=self.timeout)
+
+    def parse_contexts(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Parse retrieved_contexts from string to list.
+
+        Args:
+            data: DataFrame with retrieved_contexts column
+
+        Returns:
+            DataFrame with parsed contexts
+        """
+        if "retrieved_contexts" in data.columns:
+            data["retrieved_contexts"] = data["retrieved_contexts"].apply(
+                ast.literal_eval
+            )
+        return data
+
+    def prepare_dataset(self, data: pd.DataFrame) -> EvaluationDataset:
+        """Prepare evaluation dataset from dataframe.
+
+        Args:
+            data: DataFrame with evaluation data
+
+        Returns:
+            RAGAS EvaluationDataset
+        """
+        eval_data = data[
+            ["user_input", "reference", "response", "retrieved_contexts"]
+        ].to_dict(orient="records")
+        return EvaluationDataset.from_list(eval_data)
+
+    def run_evaluation(
+        self, input_csv_path: str, evaluation_embeddings: Embeddings
+    ) -> pd.DataFrame:
+        """Run evaluation on input data.
+
+        Args:
+            input_csv_path: Path to input CSV file
+            evaluation_embeddings: Embeddings to use for evaluation
+
+        Returns:
+            DataFrame with evaluation results
+        """
+        print(f"Loading data from {input_csv_path}")
+        data = pd.read_csv(input_csv_path)
+        data = self.parse_contexts(data)
+        eval_dataset = self.prepare_dataset(data)
+
+        # Wrap embeddings for RAGAS
+        wrapped_embeddings = LangchainEmbeddingsWrapper(evaluation_embeddings)
+        evaluator_llm = LangchainLLMWrapper(ChatDeepSeek(model="deepseek-chat"))
+
+        print(f"Running evaluation with {len(self.metrics)} metrics...")
+        results = evaluate(
+            dataset=eval_dataset,
+            metrics=self.metrics,
+            llm=evaluator_llm,
+            embeddings=wrapped_embeddings,
+            run_config=self.run_config,
+        )
+
+        return results.to_pandas()  # type: ignore
+
+    def evaluate_all_models(
+        self, evaluation_embeddings: Embeddings, results_dir: str = "RAGEvaluation"
+    ) -> dict[str, pd.DataFrame]:
+        """Evaluate all model-embedding pairs.
+
+        Args:
+            evaluation_embeddings: Embeddings to use for evaluation
+            results_dir: Directory containing results files
+
+        Returns:
+            Dictionary mapping model pairs to their evaluation results
+        """
+        all_results = {}
+
+        for model, embedding in zip(self.generative_models, self.embedding_models):
+            model_pair = f"{model}_{embedding}"
+            output_csv_path = os.path.join(
+                results_dir, f"evaluation_results_{model_pair}.csv"
+            )
+            input_csv_path = os.path.join(results_dir, f"results_{model_pair}.csv")
+
+            # Check if evaluation results already exist
+            if os.path.exists(output_csv_path):
+                print(f"Loading existing evaluation results for {model_pair}")
+                df = pd.read_csv(output_csv_path)
+            else:
+                # Check if input results exist
+                if not os.path.exists(input_csv_path):
+                    print(
+                        f"Warning: Input file {input_csv_path} not found. Skipping {model_pair}"
+                    )
+                    continue
+
+                print(f"Running evaluation for {model_pair}")
+                df = self.run_evaluation(input_csv_path, evaluation_embeddings)
+
+                # Save results
+                os.makedirs(results_dir, exist_ok=True)
+                df.to_csv(output_csv_path, index=False)
+                print(f"Saved evaluation results to {output_csv_path}")
+
+            all_results[model_pair] = df
+
+        return all_results
