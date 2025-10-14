@@ -15,6 +15,7 @@ class ModelConfig:
 
     deepseek_model: Literal["deepseek-chat", "deepseek-reasoner"] = "deepseek-chat"
     deepseek_temperature: float = 1.3
+    max_tokens: int = 512
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     embedding_cache_dir: str = "~/.cache/fastembed"
 
@@ -65,7 +66,9 @@ class AppConfig:
     def initialize_llm(self) -> ChatDeepSeek:
         """Initialize the main LLM."""
         return ChatDeepSeek(
-            model=self.model.deepseek_model, temperature=self.model.deepseek_temperature
+            model=self.model.deepseek_model,
+            temperature=self.model.deepseek_temperature,
+            max_tokens=self.model.max_tokens,
         )
 
     def initialize_dspy(self):
