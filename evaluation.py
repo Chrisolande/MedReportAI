@@ -30,7 +30,7 @@ from ragas.testset.synthesizers.single_hop.specific import (
     SingleHopSpecificQuerySynthesizer,
 )
 
-from rag_chain import RAGOutput
+from rag.chain import RAGOutput
 
 
 def generate_test_dataset(
