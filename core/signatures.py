@@ -1,6 +1,6 @@
 from dspy import InputField, OutputField, Signature
 
-from schemas import Sections
+from core.schemas import Sections
 
 
 class MultiQueryGenerator(Signature):

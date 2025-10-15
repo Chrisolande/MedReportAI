@@ -1,7 +1,7 @@
 import os
 import time
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 import pandas as pd
 from Bio import Entrez
@@ -11,7 +11,7 @@ from langchain_deepseek import ChatDeepSeek
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from prompts import pubmed_parser_prompt
+from prompts.scraper import pubmed_parser_prompt
 
 _ = load_dotenv()
 
@@ -41,7 +41,9 @@ class PubMedScraper:
     def __post_init__(self):
         Entrez.email = self.email
         self.llm = ChatDeepSeek(
-            model=self.model, temperature=self.temperature, max_tokens=500
+            model=self.model,
+            temperature=self.temperature,
+            max_tokens=500,  # type: ignore
         )
         self.authors = self.authors or []
         self.topics = self.topics or []
@@ -52,7 +54,7 @@ class PubMedScraper:
         result = structured_llm.invoke(
             [SystemMessage(content=pubmed_parser_prompt), HumanMessage(content=query)]
         )
-        parsed = result.model_dump()
+        parsed = result.model_dump()  # type: ignore
         logger.info(f"Parsed query: {parsed}")
         return parsed
 
@@ -88,13 +90,13 @@ class PubMedScraper:
                 db="pubmed", retmax=self.max_results, term=query
             ) as handle:
                 record = Entrez.read(handle)
-            logger.info(f"Found {len(record['IdList'])} articles")
-            return record["IdList"]
+            logger.info(f"Found {len(record['IdList'])} articles")  # type: ignore
+            return record["IdList"]  # type: ignore
         except Exception as e:
             logger.warning(f"Search error: {e}")
             return []
 
-    def extract_article_data(self, record: dict) -> dict:
+    def extract_article_data(self, record: dict) -> Any:
         """Extract article information from PubMed record."""
         try:
             medline = record["MedlineCitation"]
@@ -165,7 +167,7 @@ class PubMedScraper:
                                 # Check if it's an object with attributes
                                 elif (
                                     hasattr(article_id, "attributes")
-                                    and article_id.attributes.get("IdType") == "pubmed"
+                                    and article_id.attributes.get("IdType") == "pubmed"  # type: ignore
                                 ):
                                     pmid_found = str(article_id)
                                 # Direct string check (fallback)
@@ -203,7 +205,7 @@ class PubMedScraper:
             }
         except Exception as e:
             logger.warning(f"Extraction error: {e}")
-            return None
+            return None  # type: ignore
 
     def fetch_details(self, pmids: list[str]) -> list[dict]:
         """Fetch detailed article information."""
@@ -221,7 +223,7 @@ class PubMedScraper:
                 ) as handle:
                     records = Entrez.read(handle)
 
-                for record in records["PubmedArticle"]:
+                for record in records["PubmedArticle"]:  # type: ignore
                     article_data = self.extract_article_data(record)
                     if article_data:
                         articles.append(article_data)

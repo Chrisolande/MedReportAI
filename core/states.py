@@ -4,7 +4,7 @@ from typing import Annotated
 from langgraph.graph import MessagesState
 from typing_extensions import TypedDict
 
-from schemas import Section
+from core.schemas import Section
 
 
 class ReportStateInput(TypedDict):
@@ -30,9 +30,6 @@ class SectionState(MessagesState):
     completed_sections_context: (
         str  # Narrative flow / dependency text from earlier sections
     )
-    # completed_sections: list[
-    #     Section
-    # ]  # Final key we duplicate in the outer state before sending it to the Send() API
 
     scratchpad: str
     scratchpad_file: str

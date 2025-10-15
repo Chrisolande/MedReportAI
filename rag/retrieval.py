@@ -18,7 +18,7 @@ from loguru import logger
 from pydantic import ConfigDict, Field
 
 from config import RetrieverConfig
-from data_processing import batch_process
+from utils.data_processing import batch_process
 
 
 class FastEmbedRerank(BaseDocumentCompressor):
