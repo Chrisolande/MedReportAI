@@ -1,6 +1,6 @@
 {
     "graphs": {
-        "agent": "/home/olande/PycharmProjects/Report-Gen/app.py:graph"
+        "agent": "./app.py:graph"
     },
     "dependencies": [
         "langchain",
