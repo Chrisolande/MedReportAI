@@ -8,3 +8,8 @@ logs/
 
 
 .github/instructions/codacy.instructions.md
+RAGEvaluation/
+data/
+evaluation.py
+prompts.py
+iterations.ipynb
