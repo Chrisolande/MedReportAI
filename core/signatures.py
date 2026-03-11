@@ -94,17 +94,17 @@ class FinalInstructions(Signature):
     **Mandatory specifications:**
     - Heading: `#` (H1 in Markdown) with provided section title
     - Length: Exactly 50-100 words (strict enforcement)
-    - Format: Pure prose—zero lists, tables, bullets, or structural elements
+    - Format: Pure prose-zero lists, tables, bullets, or structural elements
     - Citations: None required (this is framing, not evidence presentation)
 
     **Content must include:**
     1. **Hook** (1-2 sentences): The core problem, gap, opportunity, or question this report addresses
-    2. **Stakes** (1-2 sentences): Why this matters now—implications for specific stakeholders
+    2. **Stakes** (1-2 sentences): Why this matters now-implications for specific stakeholders
     3. **Scope signal** (1 sentence): What the report covers without detailed enumeration
 
     **Quality markers:**
     - First sentence grabs attention (avoid generic "This report examines...")
-    - Uses accessible language—technical terms only if universally known
+    - Uses accessible language-technical terms only if universally known
     - Creates forward momentum toward the main body
     - Zero preamble or meta-commentary about the writing process
 
@@ -115,13 +115,13 @@ class FinalInstructions(Signature):
     - Format: Synthesized prose with optional ONE structural element
     - Citations: None required (synthesis of already-cited material)
 
-    **Content strategy—ADAPTIVE to report type:**
+    **Content strategy-ADAPTIVE to report type:**
 
     **Type A: Comparative Reports** (when report contrasts 2+ options/approaches/contexts)
     - **REQUIRED**: Markdown comparison table
     - **Table design rules:**
       * 2-4 columns (criteria + options being compared)
-      * 3-5 rows (key differentiators only—not exhaustive)
+      * 3-5 rows (key differentiators only-not exhaustive)
       * Cells contain specific insights from report, not generic descriptions
       * Use `|` syntax with proper alignment
     - **Post-table text** (30-50 words): Clear recommendation or "when to choose X vs. Y" guidance
@@ -151,7 +151,7 @@ class FinalInstructions(Signature):
 
     **Word count philosophy:**
     - These are constraints that force clarity, not targets to hit with filler
-    - If you draft 110 words for an intro, cut the least essential 10—don't just stop mid-thought
+    - If you draft 110 words for an intro, cut the least essential 10-don't just stop mid-thought
     - Every word must earn its place through specificity or narrative necessity
 
     **Tone calibration:**
@@ -169,7 +169,7 @@ class FinalInstructions(Signature):
 
     **Output format:**
     - Start immediately with the Markdown heading (no preamble like "Here's the introduction...")
-    - Include ONLY the section content—no word counts, no explanations, no process notes
+    - Include ONLY the section content-no word counts, no explanations, no process notes
     - Proper Markdown syntax (heading levels, table formatting, list spacing)
     - Clean, publication-ready text with no formatting artifacts
 
@@ -188,10 +188,10 @@ class FinalInstructions(Signature):
 
     **DO NOT:**
     - Include word counts or meta-commentary in your response
-    - Exceed word limits (50-100 for intro, 100-150 for conclusion)—this is non-negotiable
+    - Exceed word limits (50-100 for intro, 100-150 for conclusion)-this is non-negotiable
     - Use structural elements in introductions (zero exceptions)
     - Use more than ONE structural element in conclusions
-    - Write conclusions that merely summarize—they must synthesize or advance thinking
+    - Write conclusions that merely summarize-they must synthesize or advance thinking
     - Reference sources by citation numbers (synthesis assumes report already cited sources)
     - Use vague language like "various factors," "multiple approaches," "recent studies" without specifics
     - Create tables with more than 5 rows or lists with more than 5 items (focus is key)
@@ -199,7 +199,7 @@ class FinalInstructions(Signature):
     - Include recommendations that weren't evidenced in the provided report context
 
     **Content boundaries:**
-    - You can only synthesize what's in the provided context—do not introduce new claims
+    - You can only synthesize what's in the provided context-do not introduce new claims
     - If context lacks comparative data but section_topic says "Conclusion," default to Type B format
     - If word count forces a choice, prioritize actionable insights over comprehensive coverage
 
@@ -219,10 +219,10 @@ class FinalInstructions(Signature):
     )
     context = InputField(
         desc="Complete report content including all sections, findings, data, and examples. "
-        "This is the sole source material for synthesis—include everything relevant."
+        "This is the sole source material for synthesis-include everything relevant."
     )
 
     section_content = OutputField(
         desc="The complete, publication-ready section starting with proper Markdown heading. "
-        "No preamble, no word counts, no explanations—just the section content itself."
+        "No preamble, no word counts, no explanations-just the section content itself."
     )
