@@ -1,5 +1,6 @@
 import os
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -29,6 +30,24 @@ from utils.data_processing import (
 )
 
 config = AppConfig()
+ACTIVE_CSV_POINTER = Path("data/.active_pubmed_csv.txt")
+
+
+def _resolve_active_csv(default_csv_path: str) -> str:
+    """Resolve retrieval dataset path, preferring active live-scraped CSV when set."""
+    try:
+        if ACTIVE_CSV_POINTER.exists():
+            candidate = ACTIVE_CSV_POINTER.read_text(encoding="utf-8").strip()
+            if candidate and Path(candidate).exists():
+                logger.info(f"Using active PubMed CSV for retrieval: {candidate}")
+                return candidate
+            logger.warning(
+                "Active CSV pointer exists but target file was not found; falling back to default CSV"
+            )
+    except Exception as exc:
+        logger.warning(f"Failed to resolve active CSV pointer: {exc}")
+
+    return default_csv_path
 
 
 class FastEmbedRerank(BaseDocumentCompressor):
@@ -209,7 +228,8 @@ def get_retriever() -> ContextualCompressionRetriever:
 
     # Load and split the documents
     logger.info("Loading documents...")
-    documents = load_documents_from_csv(config.paths.default_csv_path)
+    csv_path = _resolve_active_csv(config.paths.default_csv_path)
+    documents = load_documents_from_csv(csv_path)
 
     logger.info("Splitting documents...")
     splitted_documents = split_documents(documents, embeddings)

@@ -12,6 +12,7 @@ from langgraph.graph import END
 
 from core.schemas import ClearScratchpad, ReadFromScratchpad, WriteToScratchpad
 from core.states import SectionState
+from tools.pubmed_search import pubmed_scraper_tool
 from tools.retrieval import retriever_tool
 from tools.web_search import web_search
 
@@ -24,6 +25,7 @@ SECTION_TOOLS = [
     ClearScratchpad,
     web_search,
     retriever_tool,
+    pubmed_scraper_tool,
 ]
 
 _TOOL_BY_NAME: dict = {
@@ -105,10 +107,11 @@ async def tool_node(state: SectionState) -> dict:
     scratchpad_update = None
     scratchpad_file: str = state.get("scratchpad_file", "")
 
-    for tool_call in last_message.tool_calls:
-        name = tool_call["name"]
-        args = tool_call["args"]
-        call_id = tool_call["id"]
+    tool_calls = getattr(last_message, "tool_calls", [])
+    for tool_call in tool_calls:
+        name = str(tool_call.get("name", ""))
+        args = tool_call.get("args", {})
+        call_id = str(tool_call.get("id", ""))
 
         if name == "WriteToScratchpad":
             scratchpad_update, msg = _handle_write(args, state, call_id)
