@@ -96,7 +96,7 @@ def split_documents(documents: list[Document], embeddings) -> list[Document]:
 def batch_process(
     documents: list[Document],
     embeddings,
-    persist_directory: str = "faiss_index",
+    persist_directory: str = "outputs/faiss_index",
     batch_size: int = 10,
     force_rebuild: bool = False,
 ) -> FAISS:

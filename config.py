@@ -6,7 +6,10 @@ from typing import Literal
 import dspy
 from dotenv import load_dotenv
 from dspy import LM, configure
+from langchain_core.runnables import RunnableConfig
 from langchain_deepseek import ChatDeepSeek
+
+from prompts.planner import context, report_organization
 
 
 @dataclass
@@ -40,7 +43,9 @@ class PathConfig:
 
     data_dir: Path = Path("data")
     rag_eval_dir: Path = Path("RAGEvaluation")
-    faiss_index_dir: str = "faiss_index"
+    faiss_index_dir: str = "outputs/faiss_index"
+    default_csv_path: str = "data/pubmed_results.csv"
+    scratchpad_output_dir: str = "outputs/scratchpads"
 
     def __post_init__(self):
         # Ensure directories exist
@@ -81,6 +86,28 @@ class AppConfig:
         configure(lm=dspy_lm)
         dspy.settings.configure(track_usage=True)
         return dspy_lm
+
+
+@dataclass(frozen=True, kw_only=True)
+class ReportConfig:
+    """Configurable fields for the medical report pipeline."""
+
+    context: str = context
+    report_organization: str = report_organization
+
+    @classmethod
+    def from_runnable_config(
+        cls, config: RunnableConfig | None = None
+    ) -> "ReportConfig":
+        """Create ReportConfig from RunnableConfig."""
+        cfg = config.get("configurable", {}) if config else {}
+
+        return cls(
+            context=os.environ.get("CONTEXT") or cfg.get("context") or context,
+            report_organization=os.environ.get("REPORT_ORGANIZATION")
+            or cfg.get("report_organization")
+            or report_organization,
+        )
 
 
 # Global config instance

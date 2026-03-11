@@ -14,7 +14,7 @@ class FastEmbed(Embeddings):
 
     fe: TextEmbedding = field(default_factory=TextEmbedding)
 
-    def embed_documents(self, texts: list[str]):
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
         """Embed a list of documents.
 
         Args:
@@ -25,7 +25,7 @@ class FastEmbed(Embeddings):
         """
         return [emb.tolist() for emb in self.fe.embed(texts)]
 
-    def embed_query(self, text: str):
+    def embed_query(self, text: str) -> list[float]:
         """Embed a single query text.
 
         Args:
@@ -38,8 +38,9 @@ class FastEmbed(Embeddings):
 
 
 def initialize_embeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2", cache_dir="~/.cache/fastembed"
-):
+    model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
+    cache_dir: str = "~/.cache/fastembed",
+) -> FastEmbed:
     """Initialize the embeddings model.
 
     Args:

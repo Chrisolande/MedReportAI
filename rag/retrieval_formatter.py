@@ -8,7 +8,7 @@ class RetrieverReportGenerator:
     def __init__(self, report_title: str = "Research Findings Report"):
         self.report_title = report_title
 
-    def _process_retriever_results(self, results):
+    def _process_retriever_results(self, results: list) -> dict[str, list[dict]]:
         grouped_docs = defaultdict(list)
 
         for i, result in enumerate(results, 1):
@@ -32,7 +32,7 @@ class RetrieverReportGenerator:
 
         return grouped_docs
 
-    def _generate_summary_stats(self, grouped_docs):
+    def _generate_summary_stats(self, grouped_docs: dict) -> dict[str, object]:
         total_docs = len(grouped_docs)
         total_chunks = sum(len(chunks) for chunks in grouped_docs.values())
         multichunk_docs = [
@@ -47,7 +47,7 @@ class RetrieverReportGenerator:
             "multichunk_docs": multichunk_docs,
         }
 
-    def _generate_markdown_report(self, grouped_docs):
+    def _generate_markdown_report(self, grouped_docs: dict) -> str:
         markdown = (
             f"# {self.report_title}\n"
             f"*Generated on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}*\n\n"
@@ -82,7 +82,7 @@ class RetrieverReportGenerator:
 
         return markdown
 
-    def create_report(self, results):
+    def create_report(self, results: list) -> dict[str, object]:
         grouped_docs = self._process_retriever_results(results)
         stats = self._generate_summary_stats(grouped_docs)
         markdown_report = self._generate_markdown_report(grouped_docs)

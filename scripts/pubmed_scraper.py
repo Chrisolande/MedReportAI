@@ -1,5 +1,5 @@
+import asyncio
 import os
-import time
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -208,6 +208,21 @@ class PubMedScraper:
             return None  # type: ignore
 
     def fetch_details(self, pmids: list[str]) -> list[dict]:
+        """Synchronous wrapper around async detail fetching.
+
+        Use ``fetch_details_async`` when called inside an async runtime.
+        """
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(self.fetch_details_async(pmids))
+
+        raise RuntimeError(
+            "fetch_details() was called while an event loop is running. "
+            "Use await fetch_details_async(...) in async contexts."
+        )
+
+    async def fetch_details_async(self, pmids: list[str]) -> list[dict]:
         """Fetch detailed article information."""
         articles = []
         batch_size = 10
@@ -218,18 +233,15 @@ class PubMedScraper:
                 logger.info(
                     f"Fetching batch {i // batch_size + 1}/{(len(pmids) + batch_size - 1) // batch_size}"
                 )
-                with Entrez.efetch(
-                    db="pubmed", id=",".join(batch), retmode="xml"
-                ) as handle:
-                    records = Entrez.read(handle)
+                records = await asyncio.to_thread(self._fetch_batch_records, batch)
 
                 for record in records["PubmedArticle"]:  # type: ignore
                     article_data = self.extract_article_data(record)
                     if article_data:
                         articles.append(article_data)
 
-                if i + batch_size < len(pmids):
-                    time.sleep(self.delay)
+                if i + batch_size < len(pmids) and self.delay > 0:
+                    await asyncio.sleep(self.delay)
 
             except Exception as e:
                 logger.warning(f"Batch {i // batch_size + 1} fetch error: {e}")
@@ -237,13 +249,33 @@ class PubMedScraper:
 
         return articles
 
+    @staticmethod
+    def _fetch_batch_records(batch: list[str]) -> Any:
+        with Entrez.efetch(db="pubmed", id=",".join(batch), retmode="xml") as handle:
+            return Entrez.read(handle)
+
     def scrape(self) -> pd.DataFrame:
+        """Synchronous wrapper around async scraping.
+
+        Use ``scrape_async`` when called inside an async runtime.
+        """
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(self.scrape_async())
+
+        raise RuntimeError(
+            "scrape() was called while an event loop is running. "
+            "Use await scrape_async() in async contexts."
+        )
+
+    async def scrape_async(self) -> pd.DataFrame:
         """Main scraping method."""
-        pmids = self.search_pubmed()
+        pmids = await asyncio.to_thread(self.search_pubmed)
         if not pmids:
             return pd.DataFrame()
 
-        articles = self.fetch_details(pmids)
+        articles = await self.fetch_details_async(pmids)
         if not articles:
             return pd.DataFrame()
 
@@ -253,7 +285,7 @@ class PubMedScraper:
         try:
             if not os.path.exists("data"):
                 os.makedirs("data")
-            df.to_csv(self.output_file, index=False)
+            await asyncio.to_thread(df.to_csv, self.output_file, index=False)
             logger.info(f"Results saved to {self.output_file}")
         except Exception as e:
             logger.warning(f"Save error: {e}")
@@ -261,9 +293,24 @@ class PubMedScraper:
         return df
 
     def search_with_llm(self, query: str) -> pd.DataFrame:
+        """Synchronous wrapper around async LLM search.
+
+        Use ``search_with_llm_async`` when called inside an async runtime.
+        """
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(self.search_with_llm_async(query))
+
+        raise RuntimeError(
+            "search_with_llm() was called while an event loop is running. "
+            "Use await search_with_llm_async(query) in async contexts."
+        )
+
+    async def search_with_llm_async(self, query: str) -> pd.DataFrame:
         """Search using natural language query."""
         try:
-            params = self.parse_query(query)
+            params = await asyncio.to_thread(self.parse_query, query)
 
             # Update instance attributes
             self.authors = params.get("authors", [])
@@ -274,7 +321,7 @@ class PubMedScraper:
             self.output_file = params.get("filename") or self.output_file
 
             logger.info(f"Searching with: authors={self.authors}, topics={self.topics}")
-            return self.scrape()
+            return await self.scrape_async()
 
         except Exception as e:
             logger.warning(f"LLM search error: {e}")

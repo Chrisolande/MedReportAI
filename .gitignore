@@ -5,3 +5,6 @@
 __pycache__/
 .idea/
 logs/
+
+
+.github/instructions/codacy.instructions.md

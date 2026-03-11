@@ -4,8 +4,11 @@ from typing import Any
 
 import numpy as np
 from fastembed.rerank.cross_encoder import TextCrossEncoder
-from langchain.retrievers import ContextualCompressionRetriever, EnsembleRetriever
-from langchain.retrievers.document_compressors import (
+from langchain_classic.retrievers import (
+    ContextualCompressionRetriever,
+    EnsembleRetriever,
+)
+from langchain_classic.retrievers.document_compressors import (
     DocumentCompressorPipeline,
     EmbeddingsFilter,
 )
@@ -17,8 +20,15 @@ from langchain_core.embeddings import Embeddings
 from loguru import logger
 from pydantic import ConfigDict, Field
 
-from config import RetrieverConfig
-from utils.data_processing import batch_process
+from config import AppConfig, RetrieverConfig
+from rag.embeddings import initialize_embeddings
+from utils.data_processing import (
+    batch_process,
+    load_documents_from_csv,
+    split_documents,
+)
+
+config = AppConfig()
 
 
 class FastEmbedRerank(BaseDocumentCompressor):
@@ -189,3 +199,23 @@ def build_retriever(
         # Fallback to simple dense retriever
         vector_store = batch_process(splitted_documents, embeddings)
         return vector_store.as_retriever(search_kwargs={"k": config.k})
+
+
+def get_retriever() -> ContextualCompressionRetriever:
+    embeddings = initialize_embeddings(
+        model_name=config.model.embedding_model,
+        cache_dir=config.model.embedding_cache_dir,
+    )
+
+    # Load and split the documents
+    logger.info("Loading documents...")
+    documents = load_documents_from_csv(config.paths.default_csv_path)
+
+    logger.info("Splitting documents...")
+    splitted_documents = split_documents(documents, embeddings)
+    logger.info(f"Created {len(splitted_documents)} document chunks")
+
+    # Build Retriever
+    logger.info("Building retriever")
+    retriever = build_retriever(splitted_documents, embeddings, config.retriever)
+    return retriever
