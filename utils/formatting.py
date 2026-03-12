@@ -19,7 +19,7 @@ def format_message_content(message):
             if item.get("type") == "text":
                 parts.append(item["text"])
             elif item.get("type") == "tool_use":
-                parts.append(f"\n🔧 Tool Call: {item['name']}")
+                parts.append(f"\n\U0001f527 Tool Call: {item['name']}")
                 parts.append(f"   Args: {json.dumps(item['input'], indent=2)}")
         return "\n".join(parts)
     else:
@@ -33,13 +33,19 @@ def format_messages(messages):
         content = format_message_content(m)
 
         if msg_type == "Human":
-            console.print(Panel(content, title="🧑 Human", border_style="blue"))
+            console.print(Panel(content, title="\U0001f9d1 Human", border_style="blue"))
         elif msg_type == "Ai":
-            console.print(Panel(content, title="🤖 Assistant", border_style="green"))
+            console.print(
+                Panel(content, title="\U0001f916 Assistant", border_style="green")
+            )
         elif msg_type == "Tool":
-            console.print(Panel(content, title="🔧 Tool Output", border_style="yellow"))
+            console.print(
+                Panel(content, title="\U0001f527 Tool Output", border_style="yellow")
+            )
         else:
-            console.print(Panel(content, title=f"📝 {msg_type}", border_style="white"))
+            console.print(
+                Panel(content, title=f"\U0001f4dd {msg_type}", border_style="white")
+            )
 
 
 def format_message(messages):

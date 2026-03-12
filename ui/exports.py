@@ -45,7 +45,7 @@ def render_exports(final_report: str, topic: str) -> None:
     c1, c2, c3, _ = st.columns([1, 1, 1, 2])
     with c1:
         st.download_button(
-            ":inbox_tray: Markdown",
+            "\U0001f4e5 Markdown",
             data=final_report.encode(),
             file_name=f"report_{slug}_{timestamp}.md",
             mime="text/markdown",
@@ -55,7 +55,7 @@ def render_exports(final_report: str, topic: str) -> None:
         pdf = markdown_to_pdf_bytes(final_report)
         if pdf:
             st.download_button(
-                ":inbox_tray: PDF",
+                "\U0001f4e5 PDF",
                 data=pdf,
                 file_name=f"report_{slug}_{timestamp}.pdf",
                 mime="application/pdf",
@@ -63,14 +63,14 @@ def render_exports(final_report: str, topic: str) -> None:
             )
         else:
             st.button(
-                ":inbox_tray: PDF",
+                "\U0001f4e5 PDF",
                 disabled=True,
                 use_container_width=True,
                 help="pip install weasyprint markdown",
             )
     with c3:
         st.download_button(
-            ":inbox_tray: Plain Text",
+            "\U0001f4e5 Plain Text",
             data=final_report.encode(),
             file_name=f"report_{slug}_{timestamp}.txt",
             mime="text/plain",

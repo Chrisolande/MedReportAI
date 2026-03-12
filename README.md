@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🧬 MedReportAI
+# &#x1F9EC; MedReportAI
 
 **AI-powered biomedical research report generator**
 
@@ -20,23 +20,23 @@
 
 ---
 
-## ✨ Features
+## &#x2728; Features
 
 | Feature | Description |
 |---|---|
-| 🔬 **Automated Report Planning** | DSPy-driven planner generates structured section outlines from a single research query |
-| 📡 **Triple-Source Retrieval** | Live PubMed search via BioPython Entrez, local PubMed FAISS index, and Tavily web search |
-| 🧠 **Parallel Agent Architecture** | LangGraph orchestrates multiple section-writing agents concurrently with tool access |
-| 📝 **Scratchpad Protocol** | Agents follow a disciplined extract → note → synthesise workflow for traceable research |
-| 🔄 **Hybrid Retrieval (BM25 + Dense)** | Ensemble retriever with cross-encoder reranking for high-precision document retrieval |
-| 🔎 **Live PubMed Search** | On-demand querying of PubMed with automatic CSV persistence and active-source switching |
-| 📊 **Real-Time Pipeline UI** | Streamlit dashboard with live phase tracking: Planning → Research → Synthesis → Assembly |
-| 📥 **Multi-Format Export** | Download final reports as Markdown, PDF, or plain text |
-| 🗂️ **Report History** | Browse and revisit previously generated reports from the sidebar archive |
+| &#x1F52C; **Automated Report Planning** | DSPy-driven planner generates structured section outlines from a single research query |
+| &#x1F4E1; **Triple-Source Retrieval** | Live PubMed search via BioPython Entrez, local PubMed FAISS index, and Tavily web search |
+| &#x1F9E0; **Parallel Agent Architecture** | LangGraph orchestrates multiple section-writing agents concurrently with tool access |
+| &#x1F4DD; **Scratchpad Protocol** | Agents follow a disciplined extract → note → synthesise workflow for traceable research |
+| &#x1F504; **Hybrid Retrieval (BM25 + Dense)** | Ensemble retriever with cross-encoder reranking for high-precision document retrieval |
+| &#x1F50E; **Live PubMed Search** | On-demand querying of PubMed with automatic CSV persistence and active-source switching |
+| &#x1F4CA; **Real-Time Pipeline UI** | Streamlit dashboard with live phase tracking: Planning → Research → Synthesis → Assembly |
+| &#x1F4E5; **Multi-Format Export** | Download final reports as Markdown, PDF, or plain text |
+| &#x1F5C2; **Report History** | Browse and revisit previously generated reports from the sidebar archive |
 
 ---
 
-## 🏗️ Architecture
+## &#x1F3D7; Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -83,7 +83,7 @@
 
 ---
 
-## 📁 Project Structure
+## &#x1F4C1; Project Structure
 
 ```
 MedReportAI/
@@ -149,7 +149,7 @@ MedReportAI/
 
 ---
 
-## 🚀 Getting Started
+## &#x1F680; Getting Started
 
 ### Prerequisites
 
@@ -204,7 +204,7 @@ This fetches articles from PubMed and saves them to `data/pubmed_results.csv`. T
 
 ---
 
-## 🖥️ Usage
+## &#x1F5A5; Usage
 
 ### Streamlit Web App
 
@@ -242,7 +242,7 @@ print(result["final_report"])
 
 ---
 
-## ⚙️ Configuration
+## &#x2699; Configuration
 
 All settings are centralized in `config.py` using dataclass-based configs:
 
@@ -282,24 +282,24 @@ config = {
 
 ---
 
-## 🛠️ Tech Stack
+## &#x1F6E0; Tech Stack
 
 | Layer | Technology |
 |---|---|
-| **Orchestration** | [LangGraph](https://github.com/langchain-ai/langgraph) — stateful multi-agent pipeline with parallel branches |
-| **Prompt Framework** | [DSPy](https://dspy-docs.vercel.app/) — structured signatures for planning, writing & query generation |
-| **LLM** | [DeepSeek](https://www.deepseek.com/) — `deepseek-chat` / `deepseek-reasoner` |
+| **Orchestration** | [LangGraph](https://github.com/langchain-ai/langgraph)  -  stateful multi-agent pipeline with parallel branches |
+| **Prompt Framework** | [DSPy](https://dspy-docs.vercel.app/)  -  structured signatures for planning, writing & query generation |
+| **LLM** | [DeepSeek](https://www.deepseek.com/)  -  `deepseek-chat` / `deepseek-reasoner` |
 | **Retrieval** | FAISS + BM25 ensemble with FastEmbed cross-encoder reranking |
-| **Live Search** | [BioPython Entrez](https://biopython.org/) — real-time PubMed querying with CSV persistence |
-| **Web Search** | [Tavily](https://tavily.com/) — real-time web search with raw content extraction |
-| **Frontend** | [Streamlit](https://streamlit.io/) — custom dark theme with live pipeline tracking |
-| **PDF Export** | WeasyPrint — styled PDF generation from Markdown |
-| **Logging** | [Loguru](https://github.com/Delgan/loguru) — structured logging with file rotation |
-| **Tracing** | [LangSmith](https://smith.langchain.com/) — optional observability for tool calls |
+| **Live Search** | [BioPython Entrez](https://biopython.org/)  -  real-time PubMed querying with CSV persistence |
+| **Web Search** | [Tavily](https://tavily.com/)  -  real-time web search with raw content extraction |
+| **Frontend** | [Streamlit](https://streamlit.io/)  -  custom dark theme with live pipeline tracking |
+| **PDF Export** | WeasyPrint  -  styled PDF generation from Markdown |
+| **Logging** | [Loguru](https://github.com/Delgan/loguru)  -  structured logging with file rotation |
+| **Tracing** | [LangSmith](https://smith.langchain.com/)  -  optional observability for tool calls |
 
 ---
 
-## 🧪 Development
+## &#x1F9EA; Development
 
 ```bash
 # Install dev dependencies
@@ -327,13 +327,13 @@ The project uses a comprehensive pre-commit configuration including:
 
 ---
 
-## 📄 License
+## &#x1F4C4; License
 
 This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-## 🤝 Contributing
+## &#x1F91D; Contributing
 
 Contributions are welcome! Please:
 
@@ -347,6 +347,6 @@ Contributions are welcome! Please:
 
 <div align="center">
 
-**Built with 🧬 by [@Chrisolande](https://github.com/Chrisolande)**
+**Built with &#x1F9EC; by [@Chrisolande](https://github.com/Chrisolande)**
 
 </div>

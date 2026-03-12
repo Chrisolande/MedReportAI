@@ -54,67 +54,139 @@ def inject_styles() -> None:
                 rgba(0,0,0,0.04) 4px
             );
             pointer-events: none;
-            z-index: 9999;
+            z-index: 1;
         }
 
-        #MainMenu, footer, header, [data-testid="stToolbar"] { display: none !important; }
+        #MainMenu, footer, [data-testid="stToolbar"] { display: none !important; }
+        [data-testid="collapsedControl"], [data-testid="stSidebarCollapseButton"] { display: none !important; }
+        [data-testid="stHeader"] { background: transparent !important; border-bottom: none !important; }
         .block-container { padding: 1.5rem 2rem 3rem !important; max-width: 1200px !important; }
 
+        /* Sidebar */
         [data-testid="stSidebar"] {
-            background: var(--panel) !important;
-            border-right: 1px solid var(--border) !important;
+            background: #0c1117 !important;
+            border-right: 1px solid var(--border2) !important;
+            padding-top: 0 !important;
         }
         [data-testid="stSidebar"]::before {
             content: '';
             position: absolute;
             top: 0; left: 0; right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, var(--green), transparent);
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--green), var(--cyan), transparent);
+            z-index: 10;
         }
-        [data-testid="stSidebar"] * { color: var(--ink2) !important; }
+        [data-testid="stSidebar"] > div:first-child {
+            padding-top: 1.2rem !important;
+        }
         [data-testid="stSidebar"] h2,
         [data-testid="stSidebar"] h3 {
             font-family: var(--mono) !important;
-            color: var(--green) !important;
-            letter-spacing: 0.05em !important;
+            font-size: 0.60rem !important;
+            font-weight: 400 !important;
+            color: var(--muted) !important;
+            letter-spacing: 0.18em !important;
+            text-transform: uppercase !important;
+            margin-top: 1.4rem !important;
+            margin-bottom: 0.5rem !important;
+            padding-bottom: 0.4rem !important;
+            border-bottom: 1px solid var(--border) !important;
         }
-        [data-testid="stSidebar"] .stTextArea textarea {
+        [data-testid="stSidebar"] p,
+        [data-testid="stSidebar"] span,
+        [data-testid="stSidebar"] li,
+        [data-testid="stSidebar"] small {
+            font-family: var(--mono) !important;
+            color: var(--ink2) !important;
+            font-size: 0.72rem !important;
+        }
+        [data-testid="stSidebar"] .stCaptionContainer p {
+            color: var(--muted) !important;
+            font-style: italic !important;
+            font-size: 0.68rem !important;
+        }
+        [data-testid="stSidebar"] label {
+            font-family: var(--mono) !important;
+            font-size: 0.62rem !important;
+            color: var(--muted) !important;
+            letter-spacing: 0.1em !important;
+            text-transform: uppercase !important;
+        }
+        [data-testid="stSidebar"] .stExpander {
             background: var(--bg2) !important;
+            border: 1px solid var(--border2) !important;
+            border-radius: 6px !important;
+            margin-bottom: 0.6rem !important;
+        }
+        [data-testid="stSidebar"] details summary * {
+            display: none !important;
+        }
+        [data-testid="stSidebar"] details summary::after {
+            content: '// Pipeline Config';
+            display: block !important;
+            font-family: var(--mono) !important;
+            font-size: 0.75rem !important;
+            color: var(--ink) !important;
+            letter-spacing: 0.06em !important;
+        }
+        [data-testid="stSidebar"] details summary:hover {
+            background: var(--green-dim) !important;
+        }
+        [data-testid="stSidebar"] details summary:hover::after {
+            color: var(--green) !important;
+        }
+        [data-testid="stSidebar"] textarea {
+            background: var(--bg3) !important;
             border: 1px solid var(--border) !important;
             color: var(--ink2) !important;
-            border-radius: 6px !important;
+            border-radius: 4px !important;
             font-family: var(--mono) !important;
-            font-size: 0.78rem !important;
+            font-size: 0.72rem !important;
+            line-height: 1.6 !important;
         }
-        [data-testid="stSidebar"] .stTextArea textarea:focus {
+        [data-testid="stSidebar"] textarea:focus {
             border-color: var(--border3) !important;
             box-shadow: var(--glow) !important;
         }
         [data-testid="stSidebar"] .stButton > button {
             background: var(--bg2) !important;
             border: 1px solid var(--border) !important;
+            border-left: 3px solid transparent !important;
             color: var(--ink2) !important;
-            border-radius: 6px !important;
+            border-radius: 4px !important;
             font-family: var(--mono) !important;
-            font-size: 0.78rem !important;
+            font-size: 0.72rem !important;
             text-align: left !important;
-            transition: all 0.2s !important;
-            letter-spacing: 0.02em !important;
+            transition: all 0.18s ease !important;
+            letter-spacing: 0.03em !important;
+            line-height: 1.7 !important;
+            padding: 0.65rem 0.85rem !important;
+            white-space: pre-wrap !important;
+            margin-bottom: 0.3rem !important;
         }
         [data-testid="stSidebar"] .stButton > button:hover {
             background: var(--green-dim) !important;
-            border-color: var(--border3) !important;
-            color: var(--green) !important;
-            box-shadow: var(--glow) !important;
+            border-color: var(--border2) !important;
+            border-left-color: var(--green) !important;
+            color: var(--ink) !important;
+            box-shadow: var(--glow2) !important;
         }
-        [data-testid="stSidebar"] label {
-            font-family: var(--mono) !important;
-            font-size: 0.72rem !important;
+        [data-testid="stSidebar"] .stButton:last-of-type > button {
+            border-color: rgba(248,113,113,0.15) !important;
             color: var(--muted) !important;
-            letter-spacing: 0.08em !important;
+            font-size: 0.62rem !important;
+            letter-spacing: 0.1em !important;
             text-transform: uppercase !important;
+            margin-top: 0.4rem !important;
+        }
+        [data-testid="stSidebar"] .stButton:last-of-type > button:hover {
+            border-color: rgba(248,113,113,0.4) !important;
+            color: var(--red) !important;
+            background: rgba(248,113,113,0.06) !important;
+            border-left-color: var(--red) !important;
         }
 
+        /* Masthead */
         .masthead {
             border-bottom: 1px solid var(--border);
             padding-bottom: 1.4rem;
@@ -184,6 +256,7 @@ def inject_styles() -> None:
             50% { opacity: 0.2; }
         }
 
+        /* Input */
         .input-shell {
             background: var(--bg1);
             border: 1px solid var(--border);
@@ -226,6 +299,7 @@ def inject_styles() -> None:
             text-transform: uppercase !important;
         }
 
+        /* Buttons */
         [data-testid="stBaseButton-primary"],
         .stButton > button[kind="primary"] {
             background: var(--green2) !important;
@@ -282,6 +356,7 @@ def inject_styles() -> None:
             box-shadow: var(--glow) !important;
         }
 
+        /* Pipeline UI */
         .pipeline-wrap {
             background: var(--bg1);
             border: 1px solid var(--border);
@@ -361,7 +436,6 @@ def inject_styles() -> None:
         }
         .pipeline-log .log-prefix { color: var(--green); margin-right: 0.5rem; }
         .pipeline-log .log-node { color: var(--cyan); }
-
         .event-log-wrap {
             background: var(--bg1);
             border: 1px solid var(--border);
@@ -381,6 +455,7 @@ def inject_styles() -> None:
         .log-type-err   { color: var(--red); }
         .log-msg { color: var(--ink2); }
 
+        /* Report & Archive shells */
         .report-shell {
             background: var(--bg1);
             border: 1px solid var(--border);
@@ -400,6 +475,27 @@ def inject_styles() -> None:
             background: var(--bg1);
             padding: 0 0.5rem;
         }
+        .archive-shell {
+            background: var(--bg1);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.4rem 1.6rem 1rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+        .archive-shell::before {
+            content: 'ARCHIVED_REPORT';
+            position: absolute;
+            top: -0.55rem; left: 1rem;
+            font-family: var(--mono);
+            font-size: 0.60rem;
+            letter-spacing: 0.12em;
+            color: var(--amber);
+            background: var(--bg1);
+            padding: 0 0.5rem;
+        }
+
+        /* Typography */
         .stMarkdown h1 {
             font-family: var(--serif) !important;
             font-style: italic !important;
@@ -430,26 +526,7 @@ def inject_styles() -> None:
         .stMarkdown th { background: var(--bg3) !important; color: var(--green) !important; font-family: var(--mono) !important; font-size: 0.75rem !important; letter-spacing: 0.08em !important; text-transform: uppercase !important; padding: 0.5rem 0.8rem !important; border: 1px solid var(--border) !important; }
         .stMarkdown td { color: var(--ink2) !important; padding: 0.45rem 0.8rem !important; border: 1px solid var(--border) !important; font-size: 0.88rem !important; }
 
-        .archive-shell {
-            background: var(--bg1);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1.4rem 1.6rem 1rem;
-            margin-bottom: 1.5rem;
-            position: relative;
-        }
-        .archive-shell::before {
-            content: 'ARCHIVED_REPORT';
-            position: absolute;
-            top: -0.55rem; left: 1rem;
-            font-family: var(--mono);
-            font-size: 0.60rem;
-            letter-spacing: 0.12em;
-            color: var(--amber);
-            background: var(--bg1);
-            padding: 0 0.5rem;
-        }
-
+        /* Misc */
         .export-label {
             font-family: var(--mono);
             font-size: 0.60rem;
@@ -458,7 +535,6 @@ def inject_styles() -> None:
             color: var(--muted);
             margin-bottom: 0.5rem;
         }
-
         .stAlert { background: var(--bg2) !important; border-color: var(--border2) !important; color: var(--ink2) !important; font-family: var(--mono) !important; font-size: 0.82rem !important; border-radius: 6px !important; }
         .stExpander { background: var(--bg1) !important; border: 1px solid var(--border) !important; border-radius: 6px !important; }
         .stExpander summary { font-family: var(--mono) !important; font-size: 0.78rem !important; color: var(--muted) !important; letter-spacing: 0.06em !important; }

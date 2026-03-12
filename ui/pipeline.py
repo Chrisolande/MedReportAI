@@ -19,11 +19,11 @@ NODE_PHASE_MAP: dict[str, tuple[str, str]] = {
 }
 
 PHASES = [
-    ("01", ":microscope:", "Planning", "Parsing topic, drafting section outline"),
-    ("02", ":satellite:", "Research", "Parallel agents searching literature"),
-    ("03", ":dna:", "Synthesis", "Drafting sections with evidence"),
-    ("04", ":link:", "Assembly", "Merging sections, resolving refs"),
-    ("05", ":white_checkmark:", "Complete", "Report finalised"),
+    ("01", "\N{MICROSCOPE}", "Planning", "Parsing topic, drafting section outline"),
+    ("02", "\N{SATELLITE ANTENNA}", "Research", "Parallel agents searching literature"),
+    ("03", "\N{DNA DOUBLE HELIX}", "Synthesis", "Drafting sections with evidence"),
+    ("04", "\N{LINK SYMBOL}", "Assembly", "Merging sections, resolving refs"),
+    ("05", "\N{CHECK MARK}", "Complete", "Report finalised"),
 ]
 
 
@@ -157,7 +157,7 @@ def run_with_ui(topic: str, context: str, report_organization: str) -> dict | No
                 f'<div class="log-line">'
                 f'<span class="log-time">{entry["ts"]}</span>'
                 f'<span class="log-type-{entry["kind"]}">[{entry["kind"].upper()}]</span>'
-                f'<span class="log-msg"> <span class="log-node">{entry["node"]}</span> — {entry["msg"]}</span>'
+                f'<span class="log-msg"> <span class="log-node">{entry["node"]}</span> - {entry["msg"]}</span>'
                 f"</div>"
                 for entry in log_lines[-18:]
             )
@@ -210,7 +210,7 @@ def run_with_ui(topic: str, context: str, report_organization: str) -> dict | No
                     "msg": "graph completed successfully",
                 }
             )
-            _refresh("Pipeline complete :white_check_mark:")
+            _refresh("Pipeline complete \N{CHECK MARK}")
             break
 
         elif etype == "error":

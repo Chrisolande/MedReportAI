@@ -13,13 +13,13 @@ def render() -> tuple[str, str]:
     """Render sidebar and return (context, report_organization)."""
     with st.sidebar:
         st.markdown(
-            '<h3 style="margin:0 0 0.3rem;font-size:1rem;">:dna: MedReportAI</h3>'
+            '<h3 style="margin:0 0 0.3rem;font-size:1rem;">\N{DNA DOUBLE HELIX} MedReportAI</h3>'
             "<p style=\"font-family:'Syne Mono',monospace;font-size:0.62rem;"
             'color:#3a5a40;letter-spacing:0.12em;margin:0 0 1.2rem;">',
             unsafe_allow_html=True,
         )
 
-        with st.expander(":gear: Pipeline Config", expanded=False):
+        with st.expander("\N{GEAR} Workflow Settings", expanded=False):
             context = st.text_area(
                 "Context / Persona",
                 value=DEFAULT_CONTEXT,
@@ -52,7 +52,11 @@ def render() -> tuple[str, str]:
         else:
             selected_id = st.session_state.get("selected_history_id")
             for item in history:
-                prefix = ":arrow_forward: " if item["id"] == selected_id else "  "
+                prefix = (
+                    "\N{BLACK RIGHT-POINTING TRIANGLE} "
+                    if item["id"] == selected_id
+                    else "  "
+                )
                 title = textwrap.shorten(item["topic"], width=34, placeholder="…")
                 if st.button(
                     f"{prefix}{title}\n{item['created_at']}",
@@ -63,7 +67,7 @@ def render() -> tuple[str, str]:
                     st.session_state["viewing_history"] = item
                     st.rerun()
 
-            if st.button(":wastebasket: Clear archive", use_container_width=True):
+            if st.button("\N{WASTEBASKET} Clear archive", use_container_width=True):
                 hist.clear()
                 st.session_state.pop("selected_history_id", None)
                 st.session_state.pop("viewing_history", None)
