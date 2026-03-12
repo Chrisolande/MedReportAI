@@ -15,7 +15,7 @@ def render() -> tuple[str, str]:
         st.markdown(
             '<h3 style="margin:0 0 0.3rem;font-size:1rem;">:dna: MedReportAI</h3>'
             "<p style=\"font-family:'Syne Mono',monospace;font-size:0.62rem;"
-            'color:#3a5a40;letter-spacing:0.12em;margin:0 0 1.2rem;">',
+            'color:#5a7060;letter-spacing:0.12em;margin:0 0 1.2rem;"></p>',
             unsafe_allow_html=True,
         )
 
@@ -37,7 +37,7 @@ def render() -> tuple[str, str]:
 
         st.markdown(
             "<p style=\"font-family:'Syne Mono',monospace;font-size:0.60rem;"
-            "letter-spacing:0.14em;text-transform:uppercase;color:#3a5a40;"
+            "letter-spacing:0.14em;text-transform:uppercase;color:#5a7060;"
             'margin:1.2rem 0 0.6rem;">// Report Archive</p>',
             unsafe_allow_html=True,
         )
@@ -46,7 +46,7 @@ def render() -> tuple[str, str]:
         if not history:
             st.markdown(
                 "<p style=\"font-family:'Syne Mono',monospace;font-size:0.72rem;"
-                'color:#3a5a40;font-style:italic;">No archived reports.</p>',
+                'color:#5a7060;font-style:italic;">No archived reports.</p>',
                 unsafe_allow_html=True,
             )
         else:

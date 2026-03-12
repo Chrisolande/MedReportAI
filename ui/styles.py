@@ -54,10 +54,24 @@ def inject_styles() -> None:
                 rgba(0,0,0,0.04) 4px
             );
             pointer-events: none;
-            z-index: 9999;
+            z-index: 1;
         }
 
-        #MainMenu, footer, header, [data-testid="stToolbar"] { display: none !important; }
+        #MainMenu, footer, [data-testid="stToolbar"] { display: none !important; }
+        [data-testid="stHeader"] {
+            background: transparent !important;
+            border-bottom: none !important;
+        }
+        [data-testid="collapsedControl"] {
+            background: var(--panel) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 4px !important;
+            color: var(--green) !important;
+        }
+        [data-testid="collapsedControl"]:hover {
+            background: var(--green-dim) !important;
+            border-color: var(--border3) !important;
+        }
         .block-container { padding: 1.5rem 2rem 3rem !important; max-width: 1200px !important; }
 
         [data-testid="stSidebar"] {
