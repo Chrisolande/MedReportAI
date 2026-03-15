@@ -1,8 +1,13 @@
+from utils.dspy_bootstrap import ensure_dspy_cache_dir
+
+
 from dspy import Predict
 from langsmith import traceable
 from loguru import logger
 
 from core.signatures import MultiQueryGenerator
+
+ensure_dspy_cache_dir()
 
 
 @traceable(name="Multiquery Generator")

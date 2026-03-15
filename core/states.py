@@ -26,21 +26,22 @@ class ReportState(TypedDict):
     section: Annotated[Section, _keep_latest]
     scratchpad: Annotated[str, _keep_latest]
     scratchpad_file: Annotated[str, _keep_latest]
+    active_csv_path: Annotated[str, _keep_latest]
     completed_sections: Annotated[list, operator.add]
-    completed_sections_context: (
-        str  # String of any completed sections from research to write final sections
-    )
+    completed_sections_context: list[Section]
+    quality_passed: bool
+    quality_issues: list[str]
     final_report: str  # Final report
 
 
 class SectionState(MessagesState):
     section: Section
-    completed_sections_context: (
-        str  # Narrative flow / dependency text from earlier sections
-    )
+    completed_sections_context: list[Section]
 
     scratchpad: str
     scratchpad_file: str
+    active_csv_path: str
+    sources: Annotated[list[dict[str, str]], _keep_latest]
 
 
 class SectionStateOutput(TypedDict):

@@ -76,6 +76,11 @@ class Section(BaseModel):
         default="",
     )
 
+    sources: list[dict[str, str]] = Field(
+        description="Per-section source registry with stable IDs for citation grounding",
+        default_factory=list,
+    )
+
 
 class Sections(BaseModel):
     sections: list[Section] = Field(

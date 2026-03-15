@@ -1,12 +1,16 @@
 """MedReportAI Studio entry point."""
 
-import streamlit as st
+import asyncio
 
-from prompts.planner import context as DEFAULT_CONTEXT
-from prompts.planner import report_organization as DEFAULT_REPORT_ORG
+import streamlit as st
+from dspy import Predict
+
+from config import config
+from core.signatures import ReportPlanner
 from ui import history as hist
 from ui.exports import render_exports
 from ui.pipeline import run_with_ui
+from ui.sidebar import render as render_sidebar
 from ui.styles import inject_styles
 
 st.set_page_config(
@@ -20,58 +24,146 @@ _SESSION_DEFAULTS = {
     "report_topic": None,
     "viewing_history": None,
     "selected_history_id": None,
+    "pending_plan": None,
+    "pending_plan_topic": None,
+    "pending_plan_context": None,
+    "pending_plan_org": None,
 }
 
 
-def render_sidebar() -> tuple[str, str]:
-    with st.sidebar:
-        with st.expander("Pipeline Config", expanded=False, icon=None):
-            context = st.text_area(
-                "Context / Persona",
-                value=DEFAULT_CONTEXT,
-                height=95,
-                help="System persona for planner prompts.",
-                key="sb_context",
-            )
-            report_organization = st.text_area(
-                "Report Structure",
-                value=DEFAULT_REPORT_ORG,
-                height=105,
-                help="Structure guidance for the planner.",
-                key="sb_org",
-            )
+@st.cache_resource(show_spinner=False)
+def _ensure_dspy_lm_initialized():
+    return config.initialize_dspy()
 
-        st.markdown(
-            "<p style=\"font-family:'Syne Mono',monospace;font-size:0.60rem;"
-            "color:#5a7060;letter-spacing:0.18em;text-transform:uppercase;"
-            "margin:1.4rem 0 0.5rem;padding-bottom:0.4rem;"
-            'border-bottom:1px solid rgba(74,222,128,0.12);">// Report Archive</p>',
-            unsafe_allow_html=True,
+
+def _generate_plan_preview(
+    topic: str, context: str, report_organization: str
+) -> list[dict]:
+    _ensure_dspy_lm_initialized()
+
+    async def _run() -> list[dict]:
+        result = await asyncio.to_thread(
+            Predict(ReportPlanner),
+            topic=topic,
+            context=context,
+            report_organization=report_organization,
         )
+        return [
+            s.model_dump() if hasattr(s, "model_dump") else dict(s)
+            for s in result.plan.sections
+        ]
 
-        history = hist.load()
-        if not history:
-            st.caption("No archived reports.")
-        else:
-            selected_id = st.session_state.get("selected_history_id")
-            for item in history:
-                active = item["id"] == selected_id
-                label = f"{'>\u25b6 ' if active else '   '}{item['topic'][:42]}\n\u2014 {item['created_at']}"
-                if st.button(label, key=f"hist_{item['id']}", use_container_width=True):
-                    st.session_state["selected_history_id"] = item["id"]
-                    st.session_state["viewing_history"] = item
-                    st.rerun()
+    with st.spinner("Generating research plan…"):
+        return asyncio.run(_run())
 
-            if st.button("\u2715  Clear archive", use_container_width=True):
-                hist.clear()
-                st.session_state.pop("selected_history_id", None)
-                st.session_state.pop("viewing_history", None)
-                st.rerun()
 
-    return (
-        st.session_state.get("sb_context", DEFAULT_CONTEXT),
-        st.session_state.get("sb_org", DEFAULT_REPORT_ORG),
+def _clear_pending_plan() -> None:
+    for key in (
+        "pending_plan",
+        "pending_plan_topic",
+        "pending_plan_context",
+        "pending_plan_org",
+    ):
+        st.session_state[key] = None
+
+
+def _render_plan_hitl() -> list[dict]:
+    plan_sections = st.session_state.get("pending_plan") or []
+    if not plan_sections:
+        return []
+
+    st.markdown('<div class="report-shell fade-in">', unsafe_allow_html=True)
+    st.subheader("Plan Review (HITL)")
+    st.caption(
+        "Review the generated plan, edit any section details, then approve to run research."
     )
+
+    edited: list[dict] = []
+    for idx, section in enumerate(plan_sections):
+        with st.expander(
+            f"Section {idx + 1}: {section.get('name', 'Untitled')}", expanded=idx == 0
+        ):
+            updated = dict(section) | {
+                "name": st.text_input(
+                    "Title", value=section.get("name", ""), key=f"plan_name_{idx}"
+                ),
+                "description": st.text_area(
+                    "Description",
+                    value=section.get("description", ""),
+                    height=100,
+                    key=f"plan_desc_{idx}",
+                ),
+                "research": st.checkbox(
+                    "Requires research",
+                    value=bool(section.get("research", True)),
+                    key=f"plan_research_{idx}",
+                ),
+                "content": st.text_area(
+                    "Writing guidance",
+                    value=section.get("content", ""),
+                    height=120,
+                    key=f"plan_content_{idx}",
+                ),
+            }
+            edited.append(updated)
+
+    st.markdown("</div>", unsafe_allow_html=True)
+    return edited
+
+
+def _plan_action_buttons() -> tuple[bool, bool, bool]:
+    col_approve, col_regen, col_decline = st.columns([2, 1, 1])
+    with col_approve:
+        approve = st.button(
+            "Approve Plan & Run",
+            type="primary",
+            use_container_width=True,
+            key="approve_plan_run",
+        )
+    with col_regen:
+        regen = st.button("Regenerate", use_container_width=True, key="regenerate_plan")
+    with col_decline:
+        decline = st.button("Decline", use_container_width=True, key="decline_plan")
+    return approve, regen, decline
+
+
+def _handle_pending_plan(topic: str, context: str, report_organization: str) -> None:
+    edited_sections = _render_plan_hitl()
+    approve, regen, decline = _plan_action_buttons()
+
+    if regen:
+        try:
+            st.session_state["pending_plan"] = _generate_plan_preview(
+                st.session_state.get("pending_plan_topic") or topic,
+                st.session_state.get("pending_plan_context") or context,
+                st.session_state.get("pending_plan_org") or report_organization,
+            )
+            st.rerun()
+        except Exception as exc:
+            st.error(f"Unable to regenerate plan: {exc}")
+
+    if decline:
+        _clear_pending_plan()
+        st.info("Plan declined. Update your query and run again when ready.")
+        st.stop()
+
+    if approve:
+        approved_topic = st.session_state.get("pending_plan_topic") or topic
+        result = run_with_ui(
+            approved_topic,
+            st.session_state.get("pending_plan_context") or context,
+            st.session_state.get("pending_plan_org") or report_organization,
+            sections=edited_sections,
+        )
+        if result is not None:
+            st.session_state["report_result"] = result
+            st.session_state["report_topic"] = approved_topic
+            if final := result.get("final_report", ""):
+                hist.add(approved_topic, final)
+        _clear_pending_plan()
+        st.rerun()
+
+    st.stop()
 
 
 def main() -> None:
@@ -87,9 +179,7 @@ def main() -> None:
         <div class="masthead fade-in">
             <div class="masthead-eyebrow">
                 Medical Intelligence Platform
-                <span class="status-badge online">
-                    <span class="dot"></span>System Online
-                </span>
+                <span class="status-badge online"><span class="dot"></span>System Online</span>
             </div>
             <h1>Med<em>Report</em>AI</h1>
             <p class="masthead-sub">
@@ -122,8 +212,8 @@ def main() -> None:
             st.session_state.pop(k, None)
         st.rerun()
 
-    viewing = st.session_state.get("viewing_history")
-    if viewing and not run_clicked:
+    # Show archived report if one is selected and pipeline isn't running
+    if (viewing := st.session_state.get("viewing_history")) and not run_clicked:
         st.markdown(
             f'<div class="archive-shell fade-in">'
             f'<p style="font-family:var(--mono);font-size:0.68rem;color:var(--amber);'
@@ -141,17 +231,28 @@ def main() -> None:
         if not topic.strip():
             st.warning("Enter a research query to continue.")
         else:
-            result = run_with_ui(topic.strip(), context, report_organization)
-            if result is not None:
-                st.session_state["report_result"] = result
-                st.session_state["report_topic"] = topic.strip()
-                final = result.get("final_report", "")
-                if final:
-                    hist.add(topic.strip(), final)
+            try:
+                st.session_state.update(
+                    {
+                        "pending_plan": _generate_plan_preview(
+                            topic.strip(), context, report_organization
+                        ),
+                        "pending_plan_topic": topic.strip(),
+                        "pending_plan_context": context,
+                        "pending_plan_org": report_organization,
+                        "report_result": None,
+                        "report_topic": None,
+                        "viewing_history": None,
+                    }
+                )
                 st.rerun()
+            except Exception as exc:
+                st.error(f"Unable to generate plan for review: {exc}")
 
-    result = st.session_state.get("report_result")
-    if not result:
+    if st.session_state.get("pending_plan"):
+        _handle_pending_plan(topic, context, report_organization)
+
+    if not (result := st.session_state.get("report_result")):
         return
 
     final_report = result.get("final_report", "")

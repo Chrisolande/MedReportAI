@@ -13,6 +13,7 @@ from core.nodes import (
     gather_completed_sections,
     initiate_final_section_writing,
     initiate_section_writing,
+    validate_report_quality,
     write_sections,
 )
 from core.states import (
@@ -53,19 +54,27 @@ _builder.add_node("build_section_with_tools", _section_builder.compile())
 _builder.add_node("gather_sections", gather_completed_sections)
 _builder.add_node("write_final_sections", write_final_sections)
 _builder.add_node("compile_final_report", compile_final_report)
+_builder.add_node("validate_report_quality", validate_report_quality)
 
 _builder.add_conditional_edges(
     "generate_report_plan",
     initiate_section_writing,
-    ["build_section_with_tools"],
+    {
+        "build_section_with_tools": "build_section_with_tools",
+        "gather_sections": "gather_sections",
+    },
 )
 _builder.add_edge("build_section_with_tools", "gather_sections")
 _builder.add_conditional_edges(
     "gather_sections",
     initiate_final_section_writing,
-    ["write_final_sections"],
+    {
+        "write_final_sections": "write_final_sections",
+        "compile_final_report": "compile_final_report",
+    },
 )
 _builder.add_edge("write_final_sections", "compile_final_report")
+_builder.add_edge("compile_final_report", "validate_report_quality")
 _builder.set_entry_point("generate_report_plan")
 
 graph = _builder.compile()

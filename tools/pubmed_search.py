@@ -1,3 +1,4 @@
+import importlib.util
 import os
 from datetime import datetime
 from pathlib import Path
@@ -5,9 +6,21 @@ from pathlib import Path
 from langchain_core.tools import tool
 from loguru import logger
 
-from scripts.pubmed_scraper import PubMedScraper
-
-ACTIVE_CSV_POINTER = Path("data/.active_pubmed_csv.txt")
+try:
+    from scripts.pubmed_scraper import PubMedScraper
+except ModuleNotFoundError:
+    # Fallback for runtimes that don't include the project root on sys.path.
+    _SCRAPER_PATH = (
+        Path(__file__).resolve().parents[1] / "scripts" / "pubmed_scraper.py"
+    )
+    _SPEC = importlib.util.spec_from_file_location(
+        "scripts.pubmed_scraper", _SCRAPER_PATH
+    )
+    if _SPEC is None or _SPEC.loader is None:
+        raise ModuleNotFoundError("No module named 'scripts.pubmed_scraper'")
+    _MODULE = importlib.util.module_from_spec(_SPEC)
+    _SPEC.loader.exec_module(_MODULE)
+    PubMedScraper = _MODULE.PubMedScraper
 
 
 def _safe_slug(value: str) -> str:
@@ -15,10 +28,47 @@ def _safe_slug(value: str) -> str:
     return "_".join(part for part in cleaned.split("_") if part)
 
 
+def _format_pubmed_rows(df) -> list[str]:
+    rows: list[str] = []
+    head = df.head(8)
+    if hasattr(head, "iterrows"):
+        iterator = head.iterrows()
+    else:
+        iterator = iter(head)
+
+    for _, row in iterator:
+        title = str(row.get("Title", "")).strip()
+        if not title:
+            continue
+
+        journal = str(row.get("Journal", "")).strip()
+        pub_date = str(row.get("Publication Date", "")).strip()
+        url = str(row.get("Url", "")).strip()
+
+        if url:
+            rows.append(f"- **{title}** ({journal}, {pub_date})\n  - {url}")
+            continue
+
+        rows.append(f"- **{title}** ({journal}, {pub_date})")
+
+    return rows
+
+
+def _build_output(
+    search_query: str, output_file: str, rows: list[str], total: int
+) -> str:
+    return (
+        f"DATASET_PATH: {output_file}\n"
+        f"PubMed direct search results for: **{search_query}** "
+        f"(showing {min(len(rows), 8)} of {total})\n"
+        f"Dataset persisted to: `{output_file}`.\n\n" + "\n".join(rows)
+    )
+
+
 @tool
 async def pubmed_scraper_tool(
     search_query: str,
-    max_results: int = 10,
+    max_results: int = 25,
     start_date: str = "2018/01/01",
     end_date: str = "",
 ) -> str:
@@ -33,7 +83,7 @@ async def pubmed_scraper_tool(
     if not end_date:
         end_date = datetime.now().strftime("%Y/%m/%d")
 
-    capped_max_results = max(1, min(max_results, 25))
+    capped_max_results = max(1, min(max_results, 100))
 
     try:
         output_slug = _safe_slug(search_query)[:40] or "pubmed"
@@ -41,7 +91,7 @@ async def pubmed_scraper_tool(
 
         scraper = PubMedScraper(
             email=entrez_email,
-            topics=[search_query],
+            pubmed_query=search_query,
             start_date=start_date,
             end_date=end_date,
             max_results=capped_max_results,
@@ -53,32 +103,13 @@ async def pubmed_scraper_tool(
         if df.empty:
             return "No PubMed studies found for the provided query and date range."
 
-        # Mark this dataset as the active retrieval source for retriever_tool.
-        ACTIVE_CSV_POINTER.parent.mkdir(parents=True, exist_ok=True)
-        ACTIVE_CSV_POINTER.write_text(output_file, encoding="utf-8")
-
-        rows = []
-        for _, row in df.head(8).iterrows():
-            title = str(row.get("Title", "")).strip()
-            journal = str(row.get("Journal", "")).strip()
-            pub_date = str(row.get("Publication Date", "")).strip()
-            url = str(row.get("Url", "")).strip()
-            if title and url:
-                rows.append(f"- **{title}** ({journal}, {pub_date})\\n  - {url}")
-            elif title:
-                rows.append(f"- **{title}** ({journal}, {pub_date})")
-
+        rows = _format_pubmed_rows(df)
         if not rows:
             return (
                 "PubMed returned records, but no usable citation fields were extracted."
             )
 
-        return (
-            f"PubMed direct search results for: **{search_query}** "
-            f"(showing {min(len(rows), 8)} of {len(df)})\\n"
-            f"Dataset persisted to: `{output_file}` and set as active retrieval source.\\n\\n"
-            + "\\n".join(rows)
-        )
+        return _build_output(search_query, output_file, rows, len(df))
     except Exception as exc:
         logger.error(f"Error in pubmed_scraper_tool: {exc}")
         return f"PubMed scraping failed: {exc}"

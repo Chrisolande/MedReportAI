@@ -1,8 +1,20 @@
 import sys
 import warnings
+from pathlib import Path
 
 import nest_asyncio
 from loguru import logger
+
+
+def content_to_text(content) -> str:
+    """Flatten str | list[str | dict] message content to plain text."""
+    if isinstance(content, list):
+        return "\n".join(
+            item if isinstance(item, str) else item.get("text", "")
+            for item in content
+            if isinstance(item, (str, dict))
+        )
+    return str(content)
 
 
 def setup_environment():
@@ -64,8 +76,6 @@ def validate_file_exists(file_path: str) -> bool:
     Returns:
         True if file exists, False otherwise
     """
-    from pathlib import Path
-
     return Path(file_path).exists()
 
 
@@ -75,6 +85,4 @@ def ensure_directory(dir_path: str):
     Args:
         dir_path: Path to the directory
     """
-    from pathlib import Path
-
     Path(dir_path).mkdir(parents=True, exist_ok=True)

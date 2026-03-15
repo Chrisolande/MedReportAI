@@ -1,28 +1,19 @@
 """Utility functions for context engineering notebooks."""
 
-import json
-
 from rich.console import Console
 from rich.panel import Panel
+
+from utils.helpers import content_to_text
 
 console = Console()
 
 
 def format_message_content(message):
     """Convert message content to displayable string."""
-    if isinstance(message.content, str):
-        return message.content
-    elif isinstance(message.content, list):
-        # Handle complex content like tool calls
-        parts = []
-        for item in message.content:
-            if item.get("type") == "text":
-                parts.append(item["text"])
-            elif item.get("type") == "tool_use":
-                parts.append(f"\n\U0001f527 Tool Call: {item['name']}")
-                parts.append(f"   Args: {json.dumps(item['input'], indent=2)}")
-        return "\n".join(parts)
-    else:
+    # Use shared content_to_text utility for flattening
+    try:
+        return content_to_text(message.content)
+    except Exception:
         return str(message.content)
 
 
