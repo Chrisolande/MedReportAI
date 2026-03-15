@@ -3,11 +3,31 @@
 import asyncio
 
 from dspy import Predict
+from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 
 from config import ReportConfig
 from core.signatures import FinalInstructions, ReportPlanner
 from core.states import ReportState, SectionState
+
+
+def _topic_from_messages(state: ReportState) -> str:
+    messages = state.get("messages", [])
+    for msg in reversed(messages):
+        if isinstance(msg, HumanMessage):
+            content = msg.content
+            if isinstance(content, str) and content.strip():
+                return content.strip()
+            if isinstance(content, list):
+                text_parts = [
+                    p.get("text", "").strip()
+                    for p in content
+                    if isinstance(p, dict) and p.get("type") == "text"
+                ]
+                merged = " ".join(part for part in text_parts if part).strip()
+                if merged:
+                    return merged
+    return ""
 
 
 async def generate_plan(state: ReportState, config: RunnableConfig) -> dict:
@@ -17,10 +37,20 @@ async def generate_plan(state: ReportState, config: RunnableConfig) -> dict:
 
     report_cfg = ReportConfig.from_runnable_config(config)
 
+    topic = state.get("topic") or _topic_from_messages(state)
+    if not topic:
+        return {
+            "sections": [],
+            "final_report": (
+                "Please provide a report topic, either in the `topic` field "
+                "or as a user message."
+            ),
+        }
+
     planner = Predict(ReportPlanner)
     result = await asyncio.to_thread(
         planner,
-        topic=state.get("topic"),
+        topic=topic,
         context=report_cfg.context,
         report_organization=report_cfg.report_organization,
     )

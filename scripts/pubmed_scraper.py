@@ -1,14 +1,8 @@
 """PubMed scraper - refactored with pymed + pydantic-settings."""
 
-import os
-
-# Allow imports from project root regardless of script location
-import sys
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 import asyncio
-import os
+import time
+from pathlib import Path
 from typing import Any, Literal
 
 import pandas as pd
@@ -20,9 +14,6 @@ from pydantic import BaseModel, Field
 from pymed import PubMed
 
 from prompts.scraper import pubmed_parser_prompt
-
-# Settings
-
 
 _ = load_dotenv()
 
@@ -78,10 +69,7 @@ def _extract_extras(article: Any) -> dict[str, str]:
         }
     except Exception as exc:
         logger.debug(f"Extra-field extraction skipped: {exc}")
-        return {
-            "affiliations": "",
-            "references": "",
-        }
+        return {"affiliations": "", "references": ""}
 
 
 def _article_to_dict(article: Any) -> dict | None:
@@ -113,7 +101,7 @@ def _article_to_dict(article: Any) -> dict | None:
 
 
 def _run_async(coro):
-    """Run a coroutine safely regardless of whether a loop is already running."""
+    """Run a coroutine safely when no event loop is running."""
     try:
         asyncio.get_running_loop()
         raise RuntimeError(
@@ -179,7 +167,6 @@ class PubMedScraper:
             logger.warning("No query set – returning empty DataFrame")
             return pd.DataFrame()
 
-        # Append date filter directly into the query string if provided
         query = self.pubmed_query
         if self.start_date or self.end_date:
             start = self.start_date or "1900/01/01"
@@ -190,17 +177,7 @@ class PubMedScraper:
 
         logger.info(f"Querying PubMed: {query!r}  max={self.max_results}")
 
-        articles_raw = await asyncio.to_thread(
-            self._pubmed.query, query, max_results=self.max_results
-        )
-
-        rows: list[dict] = []
-        for article in articles_raw:
-            row = _article_to_dict(article)
-            if row:
-                rows.append(row)
-            if self.delay > 0 and len(rows) % 10 == 0 and rows:
-                await asyncio.sleep(self.delay)
+        rows = await asyncio.to_thread(self._query_rows_blocking, query)
 
         if not rows:
             logger.warning("No articles retrieved")
@@ -209,10 +186,25 @@ class PubMedScraper:
         df = pd.DataFrame(rows)
         df.columns = [c.replace("_", " ").title() for c in df.columns]
 
-        os.makedirs(os.path.dirname(self.output_file) or ".", exist_ok=True)
+        output_dir = Path(self.output_file).parent
+        await asyncio.to_thread(output_dir.mkdir, parents=True, exist_ok=True)
         await asyncio.to_thread(df.to_csv, self.output_file, index=False)
         logger.info(f"Saved {len(df)} articles -> {self.output_file}")
         return df
+
+    def _query_rows_blocking(self, query: str) -> list[dict]:
+        """Run synchronous PubMed query + iteration outside the event loop."""
+        articles_raw = self._pubmed.query(query, max_results=self.max_results)
+        rows: list[dict] = []
+
+        for idx, article in enumerate(articles_raw, start=1):
+            row = _article_to_dict(article)
+            if row:
+                rows.append(row)
+            if self.delay > 0 and idx % 10 == 0:
+                time.sleep(self.delay)
+
+        return rows
 
     async def search_with_llm_async(self, natural_language: str) -> pd.DataFrame:
         """Parse a natural-language request, then scrape."""

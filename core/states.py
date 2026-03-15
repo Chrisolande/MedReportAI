@@ -2,7 +2,7 @@ import operator
 from typing import Annotated
 
 from langgraph.graph import MessagesState
-from typing_extensions import TypedDict
+from typing_extensions import NotRequired, TypedDict
 
 from core.schemas import Section
 
@@ -12,16 +12,16 @@ def _keep_latest(_current, new):
     return new
 
 
-class ReportStateInput(TypedDict):
-    topic: str
+class ReportStateInput(MessagesState):
+    topic: NotRequired[str]
 
 
 class ReportStateOutput(TypedDict):
     final_report: str
 
 
-class ReportState(TypedDict):
-    topic: str
+class ReportState(MessagesState):
+    topic: NotRequired[str]
     sections: list[Section]
     section: Annotated[Section, _keep_latest]
     scratchpad: Annotated[str, _keep_latest]

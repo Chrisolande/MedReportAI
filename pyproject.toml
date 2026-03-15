@@ -15,6 +15,7 @@ dependencies = [
     "langchain-experimental==0.4.1",
     "langchain-tavily==0.2.17",
     "langgraph==1.1.2",
+    "langgraph-api>=0.7.71",
     "langsmith==0.7.17",
     "loguru==0.7.3",
     "markdown==3.10.2",
@@ -91,3 +92,6 @@ omit = [
     "t.py",
 ]
 fail_under = 80
+
+[tool.setuptools.packages.find]
+where = ["."]

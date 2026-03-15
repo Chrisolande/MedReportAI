@@ -13,7 +13,6 @@ from loguru import logger
 from config import config
 from core.quality import (
     build_references_block,
-    build_source_registry_text,
     enforce_source_linkage,
     validate_report_sections,
 )
@@ -121,11 +120,7 @@ async def _synthesis_phase(
                 "DO NOT call any tools."
             )
         ),
-        HumanMessage(
-            content=get_synthesis_prompt(
-                section, research_context, build_source_registry_text(sources)
-            )
-        ),
+        HumanMessage(content=get_synthesis_prompt(section, research_context)),
     ]
     response = await _llm.ainvoke(phase2_messages)
     section.content = enforce_source_linkage(content_to_text(response.content), sources)

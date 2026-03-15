@@ -1,26 +1,16 @@
-import importlib.util
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 
 from langchain_core.tools import tool
 from loguru import logger
 
-try:
-    from scripts.pubmed_scraper import PubMedScraper
-except ModuleNotFoundError:
-    # Fallback for runtimes that don't include the project root on sys.path.
-    _SCRAPER_PATH = (
-        Path(__file__).resolve().parents[1] / "scripts" / "pubmed_scraper.py"
-    )
-    _SPEC = importlib.util.spec_from_file_location(
-        "scripts.pubmed_scraper", _SCRAPER_PATH
-    )
-    if _SPEC is None or _SPEC.loader is None:
-        raise ModuleNotFoundError("No module named 'scripts.pubmed_scraper'")
-    _MODULE = importlib.util.module_from_spec(_SPEC)
-    _SPEC.loader.exec_module(_MODULE)
-    PubMedScraper = _MODULE.PubMedScraper
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from scripts.pubmed_scraper import PubMedScraper
+
+_DATA_DIR = Path("data")
 
 
 def _safe_slug(value: str) -> str:
@@ -30,27 +20,18 @@ def _safe_slug(value: str) -> str:
 
 def _format_pubmed_rows(df) -> list[str]:
     rows: list[str] = []
-    head = df.head(8)
-    if hasattr(head, "iterrows"):
-        iterator = head.iterrows()
-    else:
-        iterator = iter(head)
-
+    iterator = df.head(8).iterrows() if hasattr(df, "iterrows") else iter(df.head(8))
     for _, row in iterator:
         title = str(row.get("Title", "")).strip()
         if not title:
             continue
-
         journal = str(row.get("Journal", "")).strip()
         pub_date = str(row.get("Publication Date", "")).strip()
         url = str(row.get("Url", "")).strip()
-
+        line = f"- **{title}** ({journal}, {pub_date})"
         if url:
-            rows.append(f"- **{title}** ({journal}, {pub_date})\n  - {url}")
-            continue
-
-        rows.append(f"- **{title}** ({journal}, {pub_date})")
-
+            line += f"\n  - {url}"
+        rows.append(line)
     return rows
 
 
@@ -83,23 +64,22 @@ async def pubmed_scraper_tool(
     if not end_date:
         end_date = datetime.now().strftime("%Y/%m/%d")
 
-    capped_max_results = max(1, min(max_results, 100))
+    output_slug = _safe_slug(search_query)[:40] or "pubmed"
+    output_file = str(_DATA_DIR / f"pubmed_live_{output_slug}.csv")
 
     try:
-        output_slug = _safe_slug(search_query)[:40] or "pubmed"
-        output_file = f"data/pubmed_live_{output_slug}.csv"
-
         scraper = PubMedScraper(
             email=entrez_email,
             pubmed_query=search_query,
             start_date=start_date,
             end_date=end_date,
-            max_results=capped_max_results,
+            max_results=max(1, min(max_results, 100)),
             output_file=output_file,
             temperature=0.1,
         )
 
         df = await scraper.scrape_async()
+
         if df.empty:
             return "No PubMed studies found for the provided query and date range."
 
@@ -110,6 +90,7 @@ async def pubmed_scraper_tool(
             )
 
         return _build_output(search_query, output_file, rows, len(df))
+
     except Exception as exc:
         logger.error(f"Error in pubmed_scraper_tool: {exc}")
         return f"PubMed scraping failed: {exc}"
