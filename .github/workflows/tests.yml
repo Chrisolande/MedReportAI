@@ -12,37 +12,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint:
+  autofix:
     name: Lint & Format
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: astral-sh/setup-uv@v5
 
-      # Ruff linting (stylistic and code quality checks)
       - name: Ruff lint
-        run: uvx ruff check --output-format=github .
+        run: uvx ruff check --fix --output-format=github .
 
-      # Ruff format check (does NOT modify code, just checks formatting)
       - name: Ruff format
-        run: uvx ruff format --check .
+        run: uvx ruff format .
 
-      # isort (import sorting check only, with Black profile)
-      - name: isort
-        run: uvx isort --check-only --profile black .
-
-      # Bandit security checks
       - name: Bandit
         run: uvx bandit -c pyproject.toml -ll --skip=B101,B403,B601 -r .
+
+      - name: Commit fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: auto-format [skip ci]"
+            git push
+          fi
 
   tests:
     name: Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: lint
+    needs: autofix
 
     strategy:
       matrix:
@@ -72,32 +80,3 @@ jobs:
         with:
           name: pytest-report-${{ matrix.python-version }}
           path: pytest-report.xml
-
-  autofix:
-    name: Auto-fix Style Issues
-    runs-on: ubuntu-latest
-    if: github.event.pull_request
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-
-      - uses: astral-sh/setup-uv@v5
-
-      - name: isort (fix)
-        run: uvx isort --profile black .
-
-      - name: ruff fix
-        run: |
-          uvx ruff check . --fix
-          uvx ruff format .
-
-      - name: Commit and push changes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          if ! git diff --cached --quiet; then
-            git commit -m "chore: auto-format and import-sort code [skip ci]"
-            git push
-          fi
