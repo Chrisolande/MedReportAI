@@ -64,7 +64,7 @@ def format_retriever_results(result, title="Retriever Tool Results"):
 
     # Handle case where result is a list of documents
     for i, doc in enumerate(result):
-        formatted_console.print(f"\n[bold blue]Document {i+1}:[/bold blue]")
+        formatted_console.print(f"\n[bold blue]Document {i + 1}:[/bold blue]")
 
         # Check if doc has metadata attribute (Document object)
         if hasattr(doc, "metadata"):
