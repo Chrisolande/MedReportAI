@@ -72,3 +72,22 @@ dev = [
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=7.0.0",
 ]
+
+[tool.coverage.run]
+omit = [
+    "tests/*",
+    "evaluation.py",
+    "scripts/*",
+    "streamlit_app.py",
+    "t.py",
+]
+
+[tool.coverage.report]
+omit = [
+    "tests/*",
+    "evaluation.py",
+    "scripts/*",
+    "streamlit_app.py",
+    "t.py",
+]
+fail_under = 80
