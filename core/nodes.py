@@ -6,7 +6,7 @@ These nodes focus purely on LLM orchestration logic.
 
 from datetime import datetime
 
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langgraph.types import Send
 from loguru import logger
 
@@ -214,8 +214,11 @@ def validate_report_quality(state: ReportState) -> dict:
             f"The following report quality checks failed:\n{diagnostics}"
         ).strip()
 
+    final_message = AIMessage(content=final_report)
+
     return {
         "quality_passed": not issues,
         "quality_issues": issues,
         "final_report": final_report,
+        "messages": [final_message],
     }

@@ -3,7 +3,7 @@
 import asyncio
 
 from dspy import Predict
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 
 from config import ReportConfig
@@ -39,12 +39,14 @@ async def generate_plan(state: ReportState, config: RunnableConfig) -> dict:
 
     topic = state.get("topic") or _topic_from_messages(state)
     if not topic:
+        prompt_msg = (
+            "Please provide a report topic, either in the `topic` field "
+            "or as a user message."
+        )
         return {
             "sections": [],
-            "final_report": (
-                "Please provide a report topic, either in the `topic` field "
-                "or as a user message."
-            ),
+            "final_report": prompt_msg,
+            "messages": [AIMessage(content=prompt_msg)],
         }
 
     planner = Predict(ReportPlanner)

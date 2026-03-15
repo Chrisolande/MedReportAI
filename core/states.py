@@ -1,6 +1,7 @@
 import operator
 from typing import Annotated
 
+from langchain_core.messages import AnyMessage
 from langgraph.graph import MessagesState
 from typing_extensions import NotRequired, TypedDict
 
@@ -18,6 +19,7 @@ class ReportStateInput(MessagesState):
 
 class ReportStateOutput(TypedDict):
     final_report: str
+    messages: list[AnyMessage]
 
 
 class ReportState(MessagesState):
