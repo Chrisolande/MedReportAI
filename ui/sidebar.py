@@ -8,6 +8,42 @@ from prompts.planner import context as DEFAULT_CONTEXT
 from prompts.planner import report_organization as DEFAULT_REPORT_ORG
 from ui import history as hist
 
+_MONO = "font-family:'Syne Mono',monospace;"
+
+
+def _render_archive(history: list[dict]) -> None:
+    st.markdown(
+        f'<p style="{_MONO}font-size:0.60rem;letter-spacing:0.14em;'
+        "text-transform:uppercase;color:#3a5a40;margin:1.2rem 0 0.6rem;"
+        '">// Report Archive</p>',
+        unsafe_allow_html=True,
+    )
+
+    if not history:
+        st.markdown(
+            f'<p style="{_MONO}font-size:0.72rem;color:#3a5a40;'
+            'font-style:italic;">No archived reports.</p>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    selected_id = st.session_state.get("selected_history_id")
+    for item in history:
+        prefix = (
+            "\N{BLACK RIGHT-POINTING TRIANGLE} " if item["id"] == selected_id else "  "
+        )
+        label = f"{prefix}{textwrap.shorten(item['topic'], width=34, placeholder='…')}\n{item['created_at']}"
+        if st.button(label, key=f"hist_{item['id']}", use_container_width=True):
+            st.session_state["selected_history_id"] = item["id"]
+            st.session_state["viewing_history"] = item
+            st.rerun()
+
+    if st.button("\N{WASTEBASKET} Clear archive", use_container_width=True):
+        hist.clear()
+        st.session_state.pop("selected_history_id", None)
+        st.session_state.pop("viewing_history", None)
+        st.rerun()
+
 
 def render() -> tuple[str, str]:
     """Render sidebar and return (context, report_organization)."""
@@ -20,14 +56,14 @@ def render() -> tuple[str, str]:
         )
 
         with st.expander("\N{GEAR} Workflow Settings", expanded=False):
-            context = st.text_area(
+            st.text_area(
                 "Context / Persona",
                 value=DEFAULT_CONTEXT,
                 height=95,
                 help="System persona for planner prompts.",
                 key="sb_context",
             )
-            report_organization = st.text_area(
+            st.text_area(
                 "Report Structure",
                 value=DEFAULT_REPORT_ORG,
                 height=105,
@@ -35,43 +71,7 @@ def render() -> tuple[str, str]:
                 key="sb_org",
             )
 
-        st.markdown(
-            "<p style=\"font-family:'Syne Mono',monospace;font-size:0.60rem;"
-            "letter-spacing:0.14em;text-transform:uppercase;color:#3a5a40;"
-            'margin:1.2rem 0 0.6rem;">// Report Archive</p>',
-            unsafe_allow_html=True,
-        )
-
-        history = hist.load()
-        if not history:
-            st.markdown(
-                "<p style=\"font-family:'Syne Mono',monospace;font-size:0.72rem;"
-                'color:#3a5a40;font-style:italic;">No archived reports.</p>',
-                unsafe_allow_html=True,
-            )
-        else:
-            selected_id = st.session_state.get("selected_history_id")
-            for item in history:
-                prefix = (
-                    "\N{BLACK RIGHT-POINTING TRIANGLE} "
-                    if item["id"] == selected_id
-                    else "  "
-                )
-                title = textwrap.shorten(item["topic"], width=34, placeholder="…")
-                if st.button(
-                    f"{prefix}{title}\n{item['created_at']}",
-                    key=f"hist_{item['id']}",
-                    use_container_width=True,
-                ):
-                    st.session_state["selected_history_id"] = item["id"]
-                    st.session_state["viewing_history"] = item
-                    st.rerun()
-
-            if st.button("\N{WASTEBASKET} Clear archive", use_container_width=True):
-                hist.clear()
-                st.session_state.pop("selected_history_id", None)
-                st.session_state.pop("viewing_history", None)
-                st.rerun()
+        _render_archive(hist.load())
 
     return (
         st.session_state.get("sb_context", DEFAULT_CONTEXT),

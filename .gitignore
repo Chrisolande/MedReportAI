@@ -13,3 +13,8 @@ data/
 evaluation.py
 prompts.py
 iterations.ipynb
+
+.langgraph_api/
+outputs/
+storage/
+.codacy/

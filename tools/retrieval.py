@@ -20,11 +20,11 @@ def deduplicate_documents(documents: list[list[Document]]):
 
 
 @tool
-async def retriever_tool(search_query: str):
+async def retriever_tool(search_query: str, csv_path: str = ""):
     """Retrieves pubmed data using the provided query and generates a report in markdown
     format."""
     try:
-        retriever = get_retriever()
+        retriever = get_retriever(csv_path=csv_path or None)
         report_gen = RetrieverReportGenerator()
         result = await retriever.ainvoke(search_query)
 

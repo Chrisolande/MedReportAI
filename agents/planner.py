@@ -1,8 +1,4 @@
-"""Planner agents: report plan generation and final section writing.
-
-Both functions are DSPy-driven and operate at the report planning level,
-making this the natural home for both.
-"""
+"""Planner agents: report plan generation and final section writing."""
 
 import asyncio
 
@@ -16,6 +12,9 @@ from core.states import ReportState, SectionState
 
 async def generate_plan(state: ReportState, config: RunnableConfig) -> dict:
     """Generate a structured research plan using DSPy's ReportPlanner."""
+    if state.get("sections"):
+        return {"sections": state["sections"]}
+
     report_cfg = ReportConfig.from_runnable_config(config)
 
     planner = Predict(ReportPlanner)

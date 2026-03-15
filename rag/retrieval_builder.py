@@ -1,5 +1,6 @@
 import os
 from collections.abc import Sequence
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -30,68 +31,55 @@ from utils.data_processing import (
 )
 
 config = AppConfig()
-ACTIVE_CSV_POINTER = Path("data/.active_pubmed_csv.txt")
+RETRIEVAL_INDEX_VERSION = "v2"
 
 
-def _resolve_active_csv(default_csv_path: str) -> str:
-    """Resolve retrieval dataset path, preferring active live-scraped CSV when set."""
-    try:
-        if ACTIVE_CSV_POINTER.exists():
-            candidate = ACTIVE_CSV_POINTER.read_text(encoding="utf-8").strip()
-            if candidate and Path(candidate).exists():
-                logger.info(f"Using active PubMed CSV for retrieval: {candidate}")
-                return candidate
-            logger.warning(
-                "Active CSV pointer exists but target file was not found; falling back to default CSV"
-            )
-    except Exception as exc:
-        logger.warning(f"Failed to resolve active CSV pointer: {exc}")
-
+def _resolve_csv_path(csv_path: str | None, default_csv_path: str) -> str:
+    if csv_path and (candidate := Path(csv_path)).exists():
+        logger.info(f"Using explicit PubMed CSV for retrieval: {candidate}")
+        return str(candidate)
+    if csv_path:
+        logger.warning(
+            f"Provided csv_path does not exist ({csv_path}); falling back to default"
+        )
     return default_csv_path
 
 
-class FastEmbedRerank(BaseDocumentCompressor):
-    """Custom reranker using FastEmbed's cross-encoder.
+def _dataset_hash(csv_path: str) -> str:
+    p = Path(csv_path)
+    stat = p.stat()
+    fingerprint = (
+        f"{RETRIEVAL_INDEX_VERSION}::{p.resolve()}::{stat.st_mtime_ns}::{stat.st_size}"
+    )
+    return sha256(fingerprint.encode()).hexdigest()[:16]
 
-    Reranks retrieved documents based on relevance to the query.
-    """
+
+def _filter_empty_documents(documents: Sequence[Document]) -> list[Document]:
+    valid = [d for d in documents if d.page_content.strip()]
+    if removed := len(documents) - len(valid):
+        logger.warning(
+            f"Skipping {removed} empty documents before retriever construction"
+        )
+    return valid
+
+
+class FastEmbedRerank(BaseDocumentCompressor):
+    """Cross-encoder reranker using FastEmbed."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    model_name: str = Field(
-        default="Xenova/ms-marco-miniLM-L-6-v2", description="Cross-encoder model name"
-    )
-    cache_dir: str = Field(
-        default="~/.cache/fastembed", description="Cache directory for models"
-    )
-    top_n: int = Field(default=5, description="Number of top documents to return")
-    encoder: TextCrossEncoder | None = Field(
-        default=None, description="Cross encoder instance"
-    )
+    model_name: str = Field(default="Xenova/ms-marco-miniLM-L-6-v2")
+    cache_dir: str = Field(default="~/.cache/fastembed")
+    top_n: int = Field(default=5)
+    encoder: TextCrossEncoder | None = Field(default=None)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if self.encoder is None:
             self.encoder = TextCrossEncoder(
-                model_name=self.model_name, cache_dir=os.path.expanduser(self.cache_dir)
+                model_name=self.model_name,
+                cache_dir=os.path.expanduser(self.cache_dir),
             )
-
-    def _convert_to_documents(self, docs: Sequence[Document]) -> list[Document]:
-        """Convert various document types to standard Document format."""
-        converted_docs = []
-        for doc in docs:
-            if hasattr(doc, "state"):
-                # Handle _DocumentWithState objects
-                doc = Document(page_content=doc.page_content, metadata=doc.metadata)
-                converted_docs.append(doc)
-            else:
-                converted_docs.append(doc)
-        return converted_docs
-
-    def _normalize_scores(self, scores: list[float]) -> list[float]:
-        """Normalize scores using sigmoid function."""
-        probs = 1 / (1 + np.exp(-np.array(scores)))
-        return probs.tolist()
 
     def compress_documents(
         self,
@@ -99,143 +87,96 @@ class FastEmbedRerank(BaseDocumentCompressor):
         query: str,
         callbacks: Callbacks | None = None,
     ) -> list[Document]:
-        """Rerank and compress documents based on relevance to query.
-
-        Args:
-            documents: Documents to rerank
-            query: Query string
-            callbacks: Optional callbacks
-
-        Returns:
-            Reranked and filtered documents
-        """
         if not documents:
-            logger.error("No documents provided for reranking step")
+            logger.error("No documents provided for reranking")
             return []
 
-        if self.encoder is None:
-            self.encoder = TextCrossEncoder(
-                model_name=self.model_name, cache_dir=os.path.expanduser(self.cache_dir)
-            )
-
-        documents = self._convert_to_documents(documents)
-        logger.debug(f"Reranking {len(documents)} documents")
-
-        # Filter out documents with empty content
-        valid_docs = [doc for doc in documents if doc.page_content.strip()]
-        if not valid_docs:
-            logger.error("The documents provided have no page contents!")
+        # Normalise _DocumentWithState objects
+        docs = [
+            Document(page_content=d.page_content, metadata=d.metadata)
+            for d in documents
+        ]
+        valid = [d for d in docs if d.page_content.strip()]
+        if not valid:
+            logger.error("All documents have empty page_content")
             return []
 
         try:
-            # Extract text content
-            doc_texts = [doc.page_content for doc in valid_docs]
-
-            # Get reranking scores
-            scores = list(self.encoder.rerank(query, doc_texts))
-            norm_scores = self._normalize_scores(scores)
-
-            # Attach scores and create scored documents
-            scored_docs = []
-            for doc, score in zip(valid_docs, norm_scores):
+            scores = list(self.encoder.rerank(query, [d.page_content for d in valid]))  # type: ignore
+            norm = (1 / (1 + np.exp(-np.array(scores)))).tolist()
+            for doc, score in zip(valid, norm):
                 doc.metadata["relevance_score"] = float(score)
-                scored_docs.append(doc)
-
-            # Sort by relevance and return top_n
-            reranked_docs = sorted(
-                scored_docs, key=lambda d: d.metadata["relevance_score"], reverse=True
-            )
-            return reranked_docs[: self.top_n]
-
+            return sorted(
+                valid, key=lambda d: d.metadata["relevance_score"], reverse=True
+            )[: self.top_n]
         except Exception as e:
-            logger.error(f"An error occurred during Reranking: {str(e)}")
+            logger.error(f"Reranking failed: {e}")
             return []
 
 
 def build_retriever(
     splitted_documents: list[Document],
     embeddings: Embeddings,
-    config: RetrieverConfig | None = None,
+    retriever_config: RetrieverConfig | None = None,
+    persist_directory: str | None = None,
 ) -> ContextualCompressionRetriever | Any:
-    """Build a comprehensive retriever with ensemble retrieval and compression.
-
-    Args:
-        splitted_documents: Pre-split documents
-        embeddings: Embeddings model
-        config: Retriever configuration
-
-    Returns:
-        Configured ContextualCompressionRetriever
-    """
-    if config is None:
-        config = RetrieverConfig()
+    """Build ensemble retriever with compression pipeline, falling back to dense-only on
+    error."""
+    cfg = retriever_config or RetrieverConfig()
 
     if not splitted_documents:
-        raise ValueError("No documents are passed")
+        raise ValueError("No documents provided")
+    docs = _filter_empty_documents(splitted_documents)
+    if not docs:
+        raise ValueError("No non-empty documents available for retrieval")
+
+    persist_dir = persist_directory or cfg.paths.faiss_index_dir
 
     try:
-        # Create dense retriever (vector-based)
-        vector_store = batch_process(splitted_documents, embeddings)
-        dense_retriever = vector_store.as_retriever(search_kwargs={"k": config.k})
-
-        # Create sparse retriever (BM25)
-        sparse_retriever = BM25Retriever.from_documents(splitted_documents, k=config.k)
-
-        # Ensemble retriever combining both
-        ensemble_retriever = EnsembleRetriever(
-            retrievers=[sparse_retriever, dense_retriever],
-            weights=[config.sparse_weight, config.dense_weight],
+        vector_store = batch_process(docs, embeddings, persist_directory=persist_dir)
+        ensemble = EnsembleRetriever(
+            retrievers=[
+                BM25Retriever.from_documents(docs, k=cfg.k),
+                vector_store.as_retriever(search_kwargs={"k": cfg.k}),
+            ],
+            weights=[cfg.sparse_weight, cfg.dense_weight],
         )
-
-        # Build compression pipeline
-        pipeline_compressor = DocumentCompressorPipeline(
+        pipeline = DocumentCompressorPipeline(
             transformers=[
-                # Filter by similarity threshold
                 EmbeddingsFilter(
-                    embeddings=embeddings,
-                    similarity_threshold=config.similarity_threshold,
+                    embeddings=embeddings, similarity_threshold=cfg.similarity_threshold
                 ),
-                # Remove redundant documents
                 EmbeddingsRedundantFilter(
-                    embeddings=embeddings,
-                    similarity_threshold=config.redundancy_threshold,
+                    embeddings=embeddings, similarity_threshold=cfg.redundancy_threshold
                 ),
-                # Rerank remaining documents
                 FastEmbedRerank(
-                    model_name=config.reranker_model,
-                    cache_dir=config.reranker_cache_dir,
-                    top_n=config.top_n,
+                    model_name=cfg.reranker_model,
+                    cache_dir=cfg.reranker_cache_dir,
+                    top_n=cfg.top_n,
                 ),
             ]
         )
-
         return ContextualCompressionRetriever(
-            base_compressor=pipeline_compressor, base_retriever=ensemble_retriever
+            base_compressor=pipeline, base_retriever=ensemble
         )
 
     except Exception as e:
-        logger.error(f"An error occurred during retrieval: {str(e)}")
-        # Fallback to simple dense retriever
-        vector_store = batch_process(splitted_documents, embeddings)
-        return vector_store.as_retriever(search_kwargs={"k": config.k})
+        logger.error(f"Retriever build failed ({e}); falling back to dense retriever")
+        vector_store = batch_process(docs, embeddings, persist_directory=persist_dir)
+        return vector_store.as_retriever(search_kwargs={"k": cfg.k})
 
 
-def get_retriever() -> ContextualCompressionRetriever:
+def get_retriever(csv_path: str | None = None) -> ContextualCompressionRetriever:
     embeddings = initialize_embeddings(
         model_name=config.model.embedding_model,
         cache_dir=config.model.embedding_cache_dir,
     )
+    resolved = _resolve_csv_path(csv_path, config.paths.default_csv_path)
+    logger.info("Loading and splitting documents...")
+    docs = split_documents(load_documents_from_csv(resolved), embeddings)
+    logger.info(f"Created {len(docs)} document chunks")
 
-    # Load and split the documents
-    logger.info("Loading documents...")
-    csv_path = _resolve_active_csv(config.paths.default_csv_path)
-    documents = load_documents_from_csv(csv_path)
-
-    logger.info("Splitting documents...")
-    splitted_documents = split_documents(documents, embeddings)
-    logger.info(f"Created {len(splitted_documents)} document chunks")
-
-    # Build Retriever
-    logger.info("Building retriever")
-    retriever = build_retriever(splitted_documents, embeddings, config.retriever)
-    return retriever
+    persist_dir = str(Path(config.paths.faiss_index_dir) / _dataset_hash(resolved))
+    return build_retriever(
+        docs, embeddings, config.retriever, persist_directory=persist_dir
+    )

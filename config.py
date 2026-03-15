@@ -10,6 +10,9 @@ from langchain_core.runnables import RunnableConfig
 from langchain_deepseek import ChatDeepSeek
 
 from prompts.planner import context, report_organization
+from utils.dspy_bootstrap import ensure_dspy_cache_dir
+
+ensure_dspy_cache_dir()
 
 
 @dataclass
@@ -17,8 +20,8 @@ class ModelConfig:
     """Configuration for LLM models."""
 
     deepseek_model: Literal["deepseek-chat", "deepseek-reasoner"] = "deepseek-chat"
-    deepseek_temperature: float = 1.3
-    max_tokens: int = 512
+    deepseek_temperature: float = 0.4
+    max_tokens: int = 1200
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     embedding_cache_dir: str = "~/.cache/fastembed"
 

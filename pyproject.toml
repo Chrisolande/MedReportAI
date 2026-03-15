@@ -36,4 +36,4 @@ remove-unused-variables = true
 line-length = 88
 
 [tool.ruff.lint]
-ignore = ["F841", "F704"]
+ignore = ["F841", "F704", "I"]
