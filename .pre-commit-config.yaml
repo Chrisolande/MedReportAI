@@ -6,7 +6,7 @@ default_language_version:
 repos:
   # General file checks and validation
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
         types_or: [ python, yaml, toml, json ]
@@ -25,7 +25,7 @@ repos:
       - id: requirements-txt-fixer
   # Python code linting and formatting with Ruff
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+    rev: v0.15.6
     hooks:
       - id: ruff
         args: [ --fix ]
@@ -40,14 +40,14 @@ repos:
         args: [ --in-place, --wrap-summaries=88, --wrap-descriptions=88 ]
   # Python code cleanup
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.17.0
+    rev: v3.21.2
     hooks:
       - id: pyupgrade
         args: [ --py310-plus ]
         types_or: [ python, pyi ]
   # Security scanning
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.9
+    rev: 1.9.4
     hooks:
       - id: bandit
         args:
@@ -58,7 +58,7 @@ repos:
         types: [ python ]
   # Jupyter notebook linting and formatting
   - repo: https://github.com/nbQA-dev/nbQA
-    rev: 1.8.7
+    rev: 1.9.1
     hooks:
       - id: nbqa-ruff
         args: [ --fix ]
@@ -70,14 +70,14 @@ repos:
         types: [ jupyter ]
   # Notebook cell execution order and output validation
   - repo: https://github.com/mwouts/jupytext
-    rev: v1.16.4
+    rev: v1.19.1
     hooks:
       - id: jupytext
         args: [ --sync ]
         types: [ jupyter ]
   # notebook quality checks
   - repo: https://github.com/srstevenson/nb-clean
-    rev: 3.3.0
+    rev: 4.0.1
     hooks:
       - id: nb-clean
         args:
@@ -86,12 +86,12 @@ repos:
           - tags
           - --preserve-cell-outputs
   - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.24.2
+    rev: v8.30.1
     hooks:
       - id: gitleaks
 
   - repo: https://github.com/nbQA-dev/nbQA
-    rev: 1.8.7
+    rev: 1.9.1
     hooks:
       - id: nbqa-isort
         additional_dependencies: [ isort==6.0.1 ]
