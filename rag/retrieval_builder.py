@@ -36,12 +36,10 @@ RETRIEVAL_INDEX_VERSION = "v2"
 
 def _resolve_csv_path(csv_path: str | None, default_csv_path: str) -> str:
     if csv_path and (candidate := Path(csv_path)).exists():
-        logger.info(f"Using explicit PubMed CSV for retrieval: {candidate}")
+        logger.info(f"Using explicit PubMed CSV: {candidate}")
         return str(candidate)
     if csv_path:
-        logger.warning(
-            f"Provided csv_path does not exist ({csv_path}); falling back to default"
-        )
+        logger.warning(f"csv_path does not exist ({csv_path}); falling back to default")
     return default_csv_path
 
 
@@ -57,9 +55,7 @@ def _dataset_hash(csv_path: str) -> str:
 def _filter_empty_documents(documents: Sequence[Document]) -> list[Document]:
     valid = [d for d in documents if d.page_content.strip()]
     if removed := len(documents) - len(valid):
-        logger.warning(
-            f"Skipping {removed} empty documents before retriever construction"
-        )
+        logger.warning(f"Skipping {removed} empty documents")
     return valid
 
 
@@ -91,7 +87,6 @@ class FastEmbedRerank(BaseDocumentCompressor):
             logger.error("No documents provided for reranking")
             return []
 
-        # Normalise _DocumentWithState objects
         docs = [
             Document(page_content=d.page_content, metadata=d.metadata)
             for d in documents
@@ -128,7 +123,7 @@ def build_retriever(
         raise ValueError("No documents provided")
     docs = _filter_empty_documents(splitted_documents)
     if not docs:
-        raise ValueError("No non-empty documents available for retrieval")
+        raise ValueError("No non-empty documents available")
 
     persist_dir = persist_directory or cfg.paths.faiss_index_dir
 
@@ -175,8 +170,7 @@ def get_retriever(csv_path: str | None = None) -> ContextualCompressionRetriever
     logger.info("Loading and splitting documents...")
     docs = split_documents(load_documents_from_csv(resolved), embeddings)
     logger.info(f"Created {len(docs)} document chunks")
-
-    persist_dir = str(Path(config.paths.faiss_index_dir) / _dataset_hash(resolved))
+    persist_dir = config.paths.faiss_index_dir
     return build_retriever(
         docs, embeddings, config.retriever, persist_directory=persist_dir
     )

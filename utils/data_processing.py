@@ -82,7 +82,7 @@ def batch_process(
     force_rebuild: bool = False,
 ) -> FAISS:
     """Return a FAISS index, loading from disk if it already exists."""
-    os.makedirs(persist_directory, exist_ok=True)
+    ensure_directory(persist_directory)
     index_path = os.path.join(persist_directory, "index.faiss")
 
     if not force_rebuild and os.path.exists(index_path):

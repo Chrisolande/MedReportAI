@@ -33,11 +33,11 @@ def handle_read(args: dict, scratchpad: str, call_id: str) -> ToolMessage:
     )
 
 
-def handle_clear(args: dict, call_id: str):
+def handle_clear(args: dict, call_id: str, scratchpad: str = ""):
     if args.get("confirm", False):
         return "", ToolMessage(
             content="Scratchpad cleared successfully.", tool_call_id=call_id
         )
-    return None, ToolMessage(
+    return scratchpad, ToolMessage(
         content="Scratchpad clear cancelled (confirm=False).", tool_call_id=call_id
     )

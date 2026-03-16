@@ -1,6 +1,7 @@
 """Planner agents: report plan generation and final section writing."""
 
 import asyncio
+import uuid
 
 from dspy import Predict
 from langchain_core.messages import AIMessage, HumanMessage
@@ -11,22 +12,24 @@ from core.signatures import FinalInstructions, ReportPlanner
 from core.states import ReportState, SectionState
 
 
+def _extract_text(content) -> str:
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        return " ".join(
+            p.get("text", "").strip()
+            for p in content
+            if isinstance(p, dict) and p.get("type") == "text"
+        ).strip()
+    return ""
+
+
 def _topic_from_messages(state: ReportState) -> str:
-    messages = state.get("messages", [])
-    for msg in reversed(messages):
+    for msg in reversed(state.get("messages", [])):
         if isinstance(msg, HumanMessage):
-            content = msg.content
-            if isinstance(content, str) and content.strip():
-                return content.strip()
-            if isinstance(content, list):
-                text_parts = [
-                    p.get("text", "").strip()
-                    for p in content
-                    if isinstance(p, dict) and p.get("type") == "text"
-                ]
-                merged = " ".join(part for part in text_parts if part).strip()
-                if merged:
-                    return merged
+            text = _extract_text(msg.content)
+            if text:
+                return text
     return ""
 
 
@@ -49,6 +52,8 @@ async def generate_plan(state: ReportState, config: RunnableConfig) -> dict:
             "messages": [AIMessage(content=prompt_msg)],
         }
 
+    run_id = str(uuid.uuid4())[:8]
+
     planner = Predict(ReportPlanner)
     result = await asyncio.to_thread(
         planner,
@@ -56,7 +61,7 @@ async def generate_plan(state: ReportState, config: RunnableConfig) -> dict:
         context=report_cfg.context,
         report_organization=report_cfg.report_organization,
     )
-    return {"sections": result.plan.sections}
+    return {"sections": result.plan.sections, "run_id": run_id}
 
 
 async def write_final_sections(state: SectionState) -> dict:

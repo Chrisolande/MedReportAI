@@ -14,15 +14,18 @@ from config import config
 from core.quality import (
     build_references_block,
     enforce_source_linkage,
+    register_sources_in_citation_registry,
     validate_report_sections,
 )
 from core.states import ReportState, SectionState
-from core.tool_node import SECTION_TOOLS, _save_scratchpad, content_to_text
+from core.tool_node import SECTION_TOOLS, save_scratchpad_async
+from core.verification import build_conservative_instruction, verify_scratchpad
 from prompts.section_writer import (
     get_initial_prompt,
     get_synthesis_prompt,
     section_writer_prompt,
 )
+from utils.helpers import content_to_text
 
 _llm = config.initialize_llm()
 _llm_with_tools = _llm.bind_tools(SECTION_TOOLS)
@@ -34,17 +37,75 @@ MIN_SCRATCHPAD_FOR_EARLY_SYNTHESIS = 100
 # Section sub-graph node
 
 
+def _default_scratchpad_file(section) -> str:
+    slug = section.name.lower().replace(" ", "_")[:30]
+    return f"scratchpad_{slug}_{datetime.now():%Y%m%d_%H%M%S}.md"
+
+
+def _should_synthesize(tool_rounds: int, scratchpad_len: int) -> bool:
+    return tool_rounds >= MAX_RESEARCH_ROUNDS or (
+        scratchpad_len > MIN_SCRATCHPAD_FOR_EARLY_SYNTHESIS and tool_rounds >= 3
+    )
+
+
+async def _handle_verification_gap(
+    section,
+    scratchpad,
+    messages,
+    scratchpad_file,
+    sources,
+    tool_messages,
+    citation_registry,
+    tool_rounds,
+):
+    """Verify scratchpad and decide next phase."""
+    verification = verify_scratchpad(scratchpad)
+    if not verification.passed and tool_rounds < MAX_RESEARCH_ROUNDS:
+        logger.info(
+            f"Section '{section.name}': verification failed, returning to research. "
+            f"Failures: {verification.failures}"
+        )
+        gap_note = (
+            "The following quality criteria were not yet met:\n"
+            + "\n".join(f"- {f}" for f in verification.failures)
+            + "\nContinue researching to address these gaps."
+        )
+        return await _research_phase(
+            section,
+            messages + [HumanMessage(content=gap_note)],
+            scratchpad_file,
+            sources,
+        )
+
+    research_context_prefix = ""
+    if not verification.passed:
+        logger.warning(
+            f"Section '{section.name}': verification failed but no rounds remain. "
+            f"Proceeding with conservative synthesis."
+        )
+        research_context_prefix = build_conservative_instruction(verification.failures)
+
+    return await _synthesis_phase(
+        section,
+        scratchpad,
+        tool_messages,
+        scratchpad_file,
+        sources,
+        citation_registry,
+        research_context_prefix,
+    )
+
+
 async def write_sections(state: SectionState) -> dict:
     """Two-phase (research -> synthesis) section writer node."""
     messages = state.get("messages", [])
     section = state["section"]
     scratchpad = state.get("scratchpad", "")
-    scratchpad_file = state.get("scratchpad_file", "")
+    scratchpad_file = state.get("scratchpad_file", "") or _default_scratchpad_file(
+        section
+    )
     sources = state.get("sources", [])
-
-    if not scratchpad_file:
-        slug = section.name.lower().replace(" ", "_")[:30]
-        scratchpad_file = f"scratchpad_{slug}_{datetime.now():%Y%m%d_%H%M%S}.md"
+    citation_registry = state.get("citation_registry", {}) or {}
 
     tool_rounds = len([m for m in messages if getattr(m, "tool_calls", None)])
     tool_messages = [m for m in messages if isinstance(m, ToolMessage)]
@@ -54,13 +115,16 @@ async def write_sections(state: SectionState) -> dict:
         f"{len(tool_messages)} tool results, scratchpad {len(scratchpad)} chars"
     )
 
-    should_synthesize = tool_rounds >= MAX_RESEARCH_ROUNDS or (
-        len(scratchpad) > MIN_SCRATCHPAD_FOR_EARLY_SYNTHESIS and tool_rounds >= 3
-    )
-
-    if should_synthesize:
-        return await _synthesis_phase(
-            section, scratchpad, tool_messages, scratchpad_file, sources
+    if _should_synthesize(tool_rounds, len(scratchpad)):
+        return await _handle_verification_gap(
+            section,
+            scratchpad,
+            messages,
+            scratchpad_file,
+            sources,
+            tool_messages,
+            citation_registry,
+            tool_rounds,
         )
     return await _research_phase(section, messages, scratchpad_file, sources)
 
@@ -94,14 +158,26 @@ async def _synthesis_phase(
     tool_messages: list,
     scratchpad_file: str,
     sources: list[dict[str, str]],
+    citation_registry: dict[str, int] | None = None,
+    research_context_prefix: str = "",
 ) -> dict:
     """Phase 2: synthesise research notes into final section content."""
     logger.info(f"Phase 2 synthesis triggered for '{section.name}'")
+
+    if citation_registry is None:
+        citation_registry = {}
+
+    citation_registry = register_sources_in_citation_registry(
+        sources, citation_registry
+    )
 
     research_context = scratchpad or "\n\n".join(
         f"### Research Finding {i + 1}\n{m.content}"
         for i, m in enumerate(tool_messages)
     )
+
+    if research_context_prefix:
+        research_context = f"{research_context_prefix}\n\n{research_context}"
 
     if not research_context.strip():
         section.content = (
@@ -110,7 +186,11 @@ async def _synthesis_phase(
             "Please rerun research with a more specific query or broader date range."
         )
         section.sources = sources
-        return {"completed_sections": [section], "scratchpad_file": scratchpad_file}
+        return {
+            "completed_sections": [section],
+            "scratchpad_file": scratchpad_file,
+            "citation_registry": citation_registry,
+        }
 
     phase2_messages = [
         SystemMessage(
@@ -120,19 +200,26 @@ async def _synthesis_phase(
                 "DO NOT call any tools."
             )
         ),
-        HumanMessage(content=get_synthesis_prompt(section, research_context)),
+        HumanMessage(
+            content=get_synthesis_prompt(
+                section, research_context, citation_registry, sources
+            )
+        ),
     ]
     response = await _llm.ainvoke(phase2_messages)
-    section.content = enforce_source_linkage(content_to_text(response.content), sources)
+    section.content = enforce_source_linkage(
+        content_to_text(response.content), sources, citation_registry
+    )
     section.sources = sources
 
     if scratchpad:
-        await _save_scratchpad(scratchpad, scratchpad_file)
+        await save_scratchpad_async(scratchpad, scratchpad_file)
 
     return {
         "messages": phase2_messages + [response],
         "completed_sections": [section],
         "scratchpad_file": scratchpad_file,
+        "citation_registry": citation_registry,
     }
 
 
@@ -150,6 +237,7 @@ def _fan_out(node: str, sections: list, extra_state: dict) -> list[Send]:
                 "scratchpad_file": "",
                 "active_csv_path": "",
                 "sources": [],
+                "citation_registry": {},
                 **extra_state,
             },
         )
@@ -160,7 +248,8 @@ def _fan_out(node: str, sections: list, extra_state: dict) -> list[Send]:
 def initiate_section_writing(state: ReportState) -> list[Send] | str:
     """Fan out research-intensive sections to parallel workers via Send."""
     sections = [s for s in state["sections"] if s.research]
-    return _fan_out("build_section_with_tools", sections, {}) or "gather_sections"
+    extra = {"run_id": state.get("run_id", "")}
+    return _fan_out("build_section_with_tools", sections, extra) or "gather_sections"
 
 
 def gather_completed_sections(state: ReportState) -> dict:
@@ -170,7 +259,10 @@ def gather_completed_sections(state: ReportState) -> dict:
 def initiate_final_section_writing(state: ReportState) -> list[Send] | str:
     """Fan out non-research sections to write_final_sections via Send."""
     sections = [s for s in state["sections"] if not s.research]
-    ctx = {"completed_sections_context": state["completed_sections_context"]}
+    ctx = {
+        "completed_sections_context": state["completed_sections_context"],
+        "run_id": state.get("run_id", ""),
+    }
     return _fan_out("write_final_sections", sections, ctx) or "compile_final_report"
 
 
@@ -179,6 +271,7 @@ def compile_final_report(state: ReportState) -> dict:
     completed = {s.name: s.content for s in state.get("completed_sections", [])}
     all_sources: list[dict[str, str]] = []
     missing: list[str] = []
+    citation_registry = state.get("citation_registry", {}) or {}
 
     for section in state["sections"]:
         if section.name in completed:
@@ -196,7 +289,9 @@ def compile_final_report(state: ReportState) -> dict:
         logger.warning("compile_final_report missing sections: " + ", ".join(missing))
 
     report_body = "\n\n".join(s.content for s in state["sections"])
-    if refs := build_references_block(all_sources):
+    if refs := build_references_block(
+        all_sources, citation_registry=citation_registry, body_text=report_body
+    ):
         report_body = f"{report_body}\n\n{refs}"
 
     return {"final_report": report_body}

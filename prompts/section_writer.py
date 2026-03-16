@@ -1,146 +1,43 @@
+from core.quality import build_source_registry_text
+
 scratchpad_prompt = """
-You have completed Phase 1 (Research & Extraction). Now execute Phase 2 (Synthesis & Writing).
+You are in Phase 2 of a two-phase medical report workflow.
 
-**PHASE 2 DIRECTIVE: WRITE ONLY - NO MORE TOOL CALLS**
+Write the final section from the supplied research notes only.
 
-Your task is to synthesize your scratchpad notes into the final report section that meets ALL specifications below.
-
----
-## Original Section Specifications
-
+## Section Specifications
 - **Section Name**: {name}
 - **Audience Complexity**: {audience_complexity}
 - **Estimated Length**: {estimated_length}
 - **Success Criteria**: {success_criteria}
 
----
-## Your Research Notes (Scratchpad)
-
+## Research Notes
 {scratchpad}
 
----
-## Instructions for Final Writing
+## Source Registry
+Use the numbered sources below for inline citations. Cite as [N] where N is the number assigned to the source.
+{source_registry}
 
-1. **Review** all scratchpad notes above
-2. **Select** the most critical findings that meet the success criteria
-3. **Synthesize** into a coherent narrative for {audience_complexity} audience
-4. **Adhere strictly** to the {estimated_length} length constraint
-5. **Output ONLY** the final markdown section content - no meta-commentary
-
-**CRITICAL RULES:**
-- DO NOT call any tools (no WriteToScratchpad, no web_search, no retriever_tool)
-- DO NOT say "I need more information" - work with what you have
-- DO NOT output anything except the final section markdown
-- START your response with the section heading: # {name}
-- STOP when you finish the section content
-
-Begin writing the final section now:
+## Hard Rules
+- No tool calls
+- No meta-commentary or completion banners
+- Every major claim must carry a numbered citation [N] where N corresponds to the source number provided in the registry above
+- Do NOT use inline markdown hyperlinks for citations; use [N] numbered references only
+- Surface conflicting numbers or interpretations explicitly instead of averaging them away
+- Claims backed only by web search (no full-text RAG) must be hedged appropriately
+- If evidence is sparse, narrow, or indirect, say so plainly
+- End on a concrete limitation, clinical nuance, or unresolved question
+- Output only the finished section markdown starting with: ## {name}
 """
 
 
 section_writer_prompt = """
----
-### Primary Directive
-Your mission is to execute a two-phase protocol to produce a technical report section.
+You are in Phase 1 of a two-phase medical report workflow.
 
-**Phase 1 (Extraction):** Gather and structure raw data (3-4 searches maximum)
-**Phase 2 (Synthesis):** Write the final section using scratchpad notes
+Collect evidence only. Do not draft the section.
+Use the fewest turns possible and avoid redundant searches.
 
-**CRITICAL**: You have a MAXIMUM research budget of 3-4 tool calls. Use them strategically.
-
----
-
-### Phase 1: Extraction Protocol (CURRENT PHASE)
-
-**Tool Usage Rules (NON-NEGOTIABLE):**
-1. Every `retriever_tool` call MUST be immediately followed by `WriteToScratchpad`
-2. Every `web_search` call MUST be immediately followed by `WriteToScratchpad`
-3. Every `pubmed_scraper_tool` call MUST be immediately followed by `WriteToScratchpad`
-4. After 3 research queries, you MUST transition to Phase 2
-5. Never call research tools without writing findings to scratchpad
-
-**Research Execution Flow:**
-```
-SEARCH 1 → pubmed_scraper_tool("query 1") → WriteToScratchpad(notes="[structured notes]", mode="append")
-SEARCH 2 → retriever_tool("query 1 refined") → WriteToScratchpad(notes="[structured notes]", mode="append")
-SEARCH 3 → web_search("query 3") → WriteToScratchpad(notes="[structured notes]", mode="append")
-REVIEW → ReadFromScratchpad() → Assess if sufficient
-DECISION → Either: (a) One final search if critical gap, then STOP, OR (b) Signal Phase 2 ready
-```
-
-When available, prefer calling `pubmed_scraper_tool` early so fresh evidence is persisted and set as active before `retriever_tool` runs.
-
-**Note-Taking Format (for WriteToScratchpad):**
-For **every** source, create a structured entry:
-```
-**CITATION**: Author et al. (Year) - Title
-**CONTEXT**:
-- Sample: [size, demographics]
-- Setting: [location, conditions]
-- Period: [timeframe]
-**DATA**:
-- [Exact statistic 1]: **[value]**
-- [Direct quote]: "[quote]"
-- [Exact statistic 2]: **[value]**
-**URL**: [full URL]
-
----
-```
-
-**Example Scratchpad Entry:**
-```
-**CITATION**: Veronese et al. (2018) - Quality of life in Palestinian children
-**CONTEXT**:
-- Sample: 1,276 children, ages 10-17
-- Setting: Nablus & Tulkarem refugee camps
-- Period: Post-2012 Gaza War
-**DATA**:
-- PTSD prevalence: **32.8%**
-- "Resilience was a significant mediator between trauma exposure and quality of life"
-- QoL mean: **38.4 (SD = 7.1)**
-**URL**: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5852959/
-
----
-```
-
-**Critical Prohibitions:**
-- Do not write prose or analysis in Phase 1
-- Do not skip WriteToScratchpad after `retriever_tool`, `web_search`, or `pubmed_scraper_tool`
-- Do not exceed 4 research tool calls
-- Do not merge or paraphrase sources
-
-**Termination Signal:**
-After completing your research (3-4 searches with scratchpad entries), respond with:
-"Phase 1 extraction complete. Scratchpad contains [X] sources. Ready for Phase 2 synthesis."
-
----
-
-### Phase 2: Synthesis & Writing (TRIGGERED SEPARATELY)
-This phase begins only after Phase 1 completion or after 4 tool calls.
-- Review scratchpad contents
-- Write the section using ONLY extracted data
-- Match section specifications exactly
-
-**Final Output Requirements:**
-- Title with Markdown `##`
-- Begin with bold declarative sentence
-- End with `### Sources` section
-- Match `{estimated_length}` and `{audience_complexity}`
-
----
-
-**YOU ARE CURRENTLY IN PHASE 1. Begin extraction now.**
-"""
-
-initial_research_prompt = """
-You are now beginning Phase 1 (Extraction).
-
-**YOUR RESEARCH BUDGET: MAXIMUM 3-4 SEARCHES**
-
-Your mission is to build a detailed, evidence-based scratchpad for the following report section using this exact protocol:
-
----
-### Section Specification
+## Section Specification
 - **Section Name:** {name}
 - **Description:** {description}
 - **Audience Complexity:** {audience_complexity}
@@ -148,49 +45,48 @@ Your mission is to build a detailed, evidence-based scratchpad for the following
 - **Dependencies:** {dependencies}
 - **Success Criteria:** {success_criteria}
 
----
-### EXACT WORKFLOW (FOLLOW PRECISELY):
+## Research Rules
+1. Prefer `pubmed_scraper_tool` as the first research tool when it can answer the topic.
+2. You may emit multiple tool calls in one assistant turn.
+3. Every research tool that yields usable evidence must be followed by `WriteToScratchpad` with `mode="append"` before another research tool.
+4. If a tool returns no findings or no usable URL, skip `WriteToScratchpad` for that result and move to the next fallback step.
+5. If `pubmed_scraper_tool` fails, retry PubMed once with a broader query. If that also fails, fall back to `web_search` for live evidence and skip `retriever_tool` entirely since no FAISS index will exist.
+6. If PubMed succeeds, use `retriever_tool` after it to RAG against the persisted index for deeper per-source extraction.
+7. Use `ReadFromScratchpad` only after your final evidence-gathering step if you need a quick coverage check.
+8. Once the scratchpad has enough evidence, stop requesting tools. The orchestrator will move to synthesis automatically.
+9. Never output a completion banner. Never write the final section in Phase 1.
+10. A scratchpad entry with fewer than 3 quantitative data points is incomplete; re-read the source and extract more before moving on.
 
-**Round 1:**
-1. Identify the 2-3 MOST CRITICAL research queries for this section
-2. Prefer `pubmed_scraper_tool` with your first query so data is persisted live
-3. **IMMEDIATELY call `WriteToScratchpad`** with structured notes from that search using this format:
+## Scratchpad Format
+For every source with usable evidence:
 ```
-**CITATION**: [Author/Source (Year) - Title]
-**CONTEXT**: [Sample/Setting/Period]
-**DATA**: [Exact statistics, quotes]
-**URL**: [Full URL]
-```
-
-**Round 2:**
-4. Call `retriever_tool` to analyze the active persisted CSV from Round 1
-5. **IMMEDIATELY call `WriteToScratchpad`** (mode: "append") with findings
-
-**Round 3 (if needed):**
-6. ONE more search for critical gaps only
-7. **IMMEDIATELY call `WriteToScratchpad`** (mode: "append")
-
-**Phase Transition:**
-8. After 2-3 searches, call `ReadFromScratchpad` to review your notes
-9. If you have sufficient evidence, **STOP calling tools** and respond with: "Phase 1 complete. Ready for synthesis."
-10. If critical gaps remain, do ONE final search, then STOP
+**CITATION**: Author et al. (Year) - Full Title (Journal or source)
+**SOURCE TYPE**: [RCT | Cohort | Systematic Review | Meta-analysis | Case Series | Field Report | Policy Brief | Web Search - no full-text indexed]
+**CONTEXT**:
+- Sample: [size, age range, sex split, condition severity]
+- Setting: [country, institution type, conflict zone vs. stable]
+- Period: [data collection dates, not just publication year]
+- Funding/Conflicts: [note if industry-funded or advocacy-affiliated]
+**QUANTITATIVE DATA**:
+- [Metric]: [exact value] (95% CI: [x-y], p=[z] if reported)
+- [Metric]: [exact value]
+- [Metric]: [exact value]
+**QUALITATIVE DATA**:
+- "[Direct quote]" (section or page if available)
+**LIMITATIONS**:
+- [e.g. self-report bias, small sample, single-centre, loss to follow-up]
+**RELEVANCE**: [1-2 sentences linking this source directly to the section thesis]
+**URL**: [full URL]
 
 ---
-**CRITICAL RULES:**
-- You MUST call `WriteToScratchpad` after EVERY `retriever_tool`, `web_search`, or `pubmed_scraper_tool` call
-- Maximum 3-4 research queries total
-- After 3 queries, you MUST stop researching and prepare for writing
-- Your scratchpad is your only Phase 2 input - make it comprehensive
-
-Begin research now. Execute search → WriteToScratchpad → search → WriteToScratchpad.
+```
 """
 
 
 def get_initial_prompt(section):
-    return initial_research_prompt.format(
+    return section_writer_prompt.format(
         name=section.name,
         description=section.description,
-        content=section.content,
         audience_complexity=section.audience_complexity,
         estimated_length=section.estimated_length,
         dependencies=section.dependencies,
@@ -198,11 +94,19 @@ def get_initial_prompt(section):
     )
 
 
-def get_synthesis_prompt(section, research_context):
+def get_synthesis_prompt(
+    section,
+    research_context,
+    citation_registry: dict[str, int] | None = None,
+    sources: list[dict[str, str]] | None = None,
+):
+    source_registry = build_source_registry_text(sources or [], citation_registry)
+
     return scratchpad_prompt.format(
         name=section.name,
         audience_complexity=section.audience_complexity,
         estimated_length=section.estimated_length,
         success_criteria=section.success_criteria,
         scratchpad=research_context,
+        source_registry=source_registry,
     )

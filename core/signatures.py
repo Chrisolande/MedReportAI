@@ -10,7 +10,7 @@ class MultiQueryGenerator(Signature):
     """Generate multiple natural language queries exploring different aspects of a
     topic.
 
-    - Write complete, natural questions or statements (not keyword lists)
+    - Write complete, natural questions or statements, not keyword lists
     - Each query must focus on a distinct angle (history, impact, mechanisms, policy, etc.)
     - Ensure semantic diversity while staying on topic
 
@@ -27,7 +27,7 @@ class MultiQueryGenerator(Signature):
     )
     num_queries: int = InputField(desc="Number of distinct queries to generate")
     search_queries: list[str] = OutputField(
-        desc="Natural, conversational queries each exploring a different aspect of the topic"
+        desc="Natural queries each exploring a different aspect of the topic"
     )
 
 
@@ -35,16 +35,16 @@ class ReportPlanner(Signature):
     """Plan a structured medical literature review broken into logical sections.
 
     A good section has a single, clear research question with defined boundaries.
-    Sections should not overlap, if two candidate sections would cite the same sources,
+    Sections must not overlap - if two candidate sections would cite the same sources,
     merge them. Prefer fewer, deeper sections over many shallow ones. Each section's
     search queries should be specific enough to return targeted results in 10-25
-    articles, not broad enough to require exhaustive literature sweeps.
+    articles.
     """
 
     topic: str = InputField(desc="Central medical or public health topic")
     context: str = InputField(
-        desc="Target population, clinical aspects, intended audience, data quality constraints, "
-        "and scope (immediate vs. long-term impacts)"
+        desc="Target population, clinical aspects, intended audience, data quality "
+        "constraints, and scope"
     )
     report_organization: str = InputField(
         desc="Section breakdown, research intensity, content requirements, and research standards"
@@ -97,7 +97,7 @@ class FinalInstructions(Signature):
         "For conclusions, note whether the report is comparative."
     )
     context: str = InputField(
-        desc="Complete report content — all sections, findings, data, examples. "
+        desc="Complete report content - all sections, findings, data, examples. "
         "Sole source material for synthesis."
     )
     section_content: str = OutputField(

@@ -6,98 +6,88 @@ from pydantic import BaseModel, Field
 
 
 class ScratchpadState(BaseModel):
-    """State that includes conversation messages and a persistent scratchpad."""
+    """Conversation messages plus a persistent scratchpad."""
 
     messages: Annotated[list[AnyMessage], add_messages]
-    scratchpad: str = Field(
-        default="",
-        description="Persistent scratchpad for storing important context and notes",
-    )
+    scratchpad: str = Field(default="")
 
 
 class WriteToScratchpad(BaseModel):
-    """Write or append to the scratchpad for context retention."""
+    """Write or append to the scratchpad."""
 
-    notes: str = Field(description="The notes to write to the scratchpad")
-    mode: Literal["append", "replace"] = Field(
-        default="append",
-        description="'append' adds to existing notes, 'replace' overwrites the existing notes",
-    )
+    notes: str = Field(description="Notes to write")
+    mode: Literal["append", "replace"] = Field(default="append")
 
 
 class ReadFromScratchpad(BaseModel):
-    """Read context from scratchpad."""
+    """Read from the scratchpad."""
 
     query: str = Field(
         default="all",
-        description="What to look for in the scratchpad. Use 'all' for everything",
+        description="What to look for. Use 'all' for everything.",
     )
 
 
 class ClearScratchpad(BaseModel):
-    """Clear the scratchpad to free up context."""
+    """Clear the scratchpad."""
 
-    confirm: bool = Field(
-        description="Must be True to confirm the clearing of the scratchpad"
-    )
+    confirm: bool = Field(description="Must be True to confirm")
 
 
 class Section(BaseModel):
     name: str = Field(
-        description="Medical research section title reflecting PubMed study focus (e.g., 'Pediatric Mental Health Outcomes', 'Conflict-Related Injuries', 'Public Health Impact')"
+        description="Section title reflecting PubMed study focus "
+        "(e.g. 'Pediatric Mental Health Outcomes', 'Conflict-Related Injuries')"
     )
     description: str = Field(
-        description="Medical research context explaining what peer-reviewed evidence this section will analyze"
+        description="What peer-reviewed evidence this section will analyze"
     )
     research: bool = Field(
-        description="True if requires current PubMed literature search, systematic reviews, or specific clinical studies. False only for background/methodology sections"
+        description="True if requires PubMed search, systematic reviews, or clinical studies. "
+        "False only for background or methodology sections."
     )
     content: str = Field(
-        description="Specific medical evidence requirements: study types needed (RCTs, cohort studies, case reports), population focus, clinical outcomes, or epidemiological data"
+        description="Evidence requirements: study types, population focus, clinical outcomes, "
+        "or epidemiological data needed"
     )
-
     audience_complexity: str = Field(
-        description="Medical evidence level: 'clinical_practitioners', 'public_health_officials', 'medical_researchers', or 'policy_makers'",
         default="clinical_practitioners",
+        description="One of: 'clinical_practitioners', 'public_health_officials', "
+        "'medical_researchers', 'policy_makers'",
     )
-
     estimated_length: str = Field(
-        description="Evidence depth: 'brief', 'standard', or 'comprehensive'",
         default="standard",
+        description="One of: 'brief', 'standard', 'comprehensive'",
     )
-
     dependencies: list[str] = Field(
-        description="Sections that must precede this one for proper medical context",
         default_factory=list,
+        description="Sections that must precede this one",
     )
-
     success_criteria: str = Field(
-        description="Specific medical research outcome or evidence synthesis goal",
         default="",
+        description="Specific evidence synthesis goal for this section",
     )
-
     sources: list[dict[str, str]] = Field(
-        description="Per-section source registry with stable IDs for citation grounding",
         default_factory=list,
+        description="Per-section source registry with stable IDs for citation grounding",
     )
 
 
 class Sections(BaseModel):
     sections: list[Section] = Field(
-        description="Medical literature review sections following systematic review or evidence synthesis structure"
+        description="Sections following systematic review or evidence synthesis structure"
     )
-
     total_estimated_length: str = Field(
-        description="Medical review scope: 'rapid_review', 'systematic_review', or 'comprehensive_meta_analysis'",
         default="systematic_review",
+        description="One of: 'rapid_review', 'systematic_review', 'comprehensive_meta_analysis'",
     )
-
     primary_audience: str = Field(
-        description="Target medical audience: 'clinicians', 'public_health_officials', 'researchers', 'humanitarian_workers', or 'policy_makers'",
         default="clinicians",
+        description="One of: 'clinicians', 'public_health_officials', 'researchers', "
+        "'humanitarian_workers', 'policy_makers'",
     )
-
     narrative_strategy: str = Field(
-        description="Medical research approach: 'systematic_review', 'scoping_review', 'epidemiological_analysis', or 'clinical_evidence_synthesis'",
         default="systematic_review",
+        description="One of: 'systematic_review', 'scoping_review', "
+        "'epidemiological_analysis', 'clinical_evidence_synthesis'",
     )

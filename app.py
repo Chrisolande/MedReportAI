@@ -5,7 +5,6 @@ Boots the environment, constructs the LangGraph pipeline, and exposes
 """
 
 from langgraph.graph import END, StateGraph
-
 from agents.planner import generate_plan, write_final_sections
 from config import ReportConfig, config
 from core.nodes import (

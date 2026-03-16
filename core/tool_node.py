@@ -11,10 +11,10 @@ from dataclasses import dataclass, field
 from langchain_core.messages import ToolMessage
 from langgraph.graph import END
 
-from core.quality import merge_sources
+from core.quality import merge_sources, register_sources_in_citation_registry
 from core.schemas import ClearScratchpad, ReadFromScratchpad, WriteToScratchpad
 from core.states import SectionState
-from tools.pubmed_search import pubmed_scraper_tool
+from tools.pubmed_search import _DATA_DIR, pubmed_scraper_tool
 from tools.retrieval import retriever_tool
 from tools.web_search import web_search
 from utils.helpers import content_to_text
@@ -34,15 +34,14 @@ SECTION_TOOLS = [
     pubmed_scraper_tool,
 ]
 
-_TOOL_BY_NAME: dict = {
-    (t.name if hasattr(t, "name") else t.__name__): t for t in SECTION_TOOLS
-}
+_EXTERNAL_TOOLS = [web_search, retriever_tool, pubmed_scraper_tool]
+_TOOL_BY_NAME: dict = {t.name: t for t in _EXTERNAL_TOOLS}
 
 
 # Utilities
 
 
-async def _save_scratchpad(content: str, filepath: str) -> None:
+async def save_scratchpad_async(content: str, filepath: str) -> None:
     from config import config as app_config
 
     await asyncio.to_thread(
@@ -69,8 +68,8 @@ def _handle_read(args: dict, state: SectionState, call_id: str) -> ToolMessage:
     return handle_read(args, state.get("scratchpad", ""), call_id)
 
 
-def _handle_clear(args: dict, call_id: str):
-    return handle_clear(args, call_id)
+def _handle_clear(args: dict, state: SectionState, call_id: str):
+    return handle_clear(args, call_id, state.get("scratchpad", ""))
 
 
 async def _handle_external(name: str, args: dict, call_id: str) -> ToolMessage:
@@ -88,11 +87,13 @@ class _CallContext:
     state: SectionState
     messages: list[ToolMessage] = field(default_factory=list)
     sources: list = field(default_factory=list)
+    citation_registry: dict[str, int] = field(default_factory=dict)
     scratchpad_update: str | None = None
     active_csv_update: str | None = None
 
     def __post_init__(self):
         self.sources = list(self.state.get("sources", []))
+        self.citation_registry = dict(self.state.get("citation_registry", {}) or {})
 
     async def dispatch(self, name: str, args: dict, call_id: str) -> None:
         if name == "WriteToScratchpad":
@@ -101,22 +102,29 @@ class _CallContext:
         elif name == "ReadFromScratchpad":
             self.messages.append(_handle_read(args, self.state, call_id))
         elif name == "ClearScratchpad":
-            self.scratchpad_update, msg = _handle_clear(args, call_id)
+            self.scratchpad_update, msg = _handle_clear(args, self.state, call_id)
             self.messages.append(msg)
         else:
             await self._dispatch_external(name, args, call_id)
 
     async def _dispatch_external(self, name: str, args: dict, call_id: str) -> None:
-        if name == "retriever_tool" and (
-            csv := self.state.get("active_csv_path", "").strip()
-        ):
-            args["csv_path"] = csv
+        run_id = self.state.get("run_id", "")
+        unified_csv = str(_DATA_DIR / f"pubmed_run_{run_id}.csv") if run_id else ""
+
+        if name == "retriever_tool" and unified_csv:
+            args["csv_path"] = unified_csv
+        if name == "pubmed_scraper_tool" and unified_csv:
+            args["csv_path"] = unified_csv
+
         msg = await _handle_external(name, args, call_id)
         self.messages.append(msg)
         text = content_to_text(msg.content)
         self.sources = merge_sources(self.sources, text)
-        if name == "pubmed_scraper_tool":
-            self.active_csv_update = _extract_dataset_path(text)
+        self.citation_registry = register_sources_in_citation_registry(
+            self.sources, self.citation_registry
+        )
+        if name == "pubmed_scraper_tool" and unified_csv:
+            self.active_csv_update = unified_csv
 
     def build_update(self) -> dict:
         update: dict = {"messages": self.messages}
@@ -124,6 +132,10 @@ class _CallContext:
             update["active_csv_path"] = self.active_csv_update
         if self.sources != list(self.state.get("sources", [])):
             update["sources"] = self.sources
+        if self.citation_registry != dict(
+            self.state.get("citation_registry", {}) or {}
+        ):
+            update["citation_registry"] = self.citation_registry
         if self.scratchpad_update is not None:
             update["scratchpad"] = self.scratchpad_update
         return update
@@ -145,7 +157,7 @@ async def tool_node(state: SectionState) -> dict:
 
     update = ctx.build_update()
     if ctx.scratchpad_update is not None and scratchpad_file:
-        await _save_scratchpad(ctx.scratchpad_update, scratchpad_file)
+        await save_scratchpad_async(ctx.scratchpad_update, scratchpad_file)
 
     return update
 

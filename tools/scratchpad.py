@@ -24,25 +24,30 @@ SECTION_TOOLS = [
     web_search,
     retriever_tool,
 ]
-_TOOL_BY_NAME = {
-    (t.name if hasattr(t, "name") else t.__name__): t for t in SECTION_TOOLS
-}
+_EXTERNAL_TOOLS = [web_search, retriever_tool]
+_TOOL_BY_NAME = {t.name: t for t in _EXTERNAL_TOOLS}
 
 
 def _save_scratchpad(content: str, filepath: str) -> None:
     save_scratchpad(content, filepath, app_config.paths.scratchpad_output_dir)
 
 
-def _handle_write(args: dict, state: ScratchpadState, call_id: str):
-    return handle_write(args, getattr(state, "scratchpad", ""), call_id)
+async def _dispatch(name: str, args: dict, state: ScratchpadState, call_id: str):
+    """Route a tool call to its handler.
 
+    Returns (scratchpad_update | None, ToolMessage).
+    """
+    scratchpad = getattr(state, "scratchpad", "")
 
-def _handle_read(args: dict, state: ScratchpadState, call_id: str) -> ToolMessage:
-    return handle_read(args, getattr(state, "scratchpad", ""), call_id)
+    if name == "WriteToScratchpad":
+        return handle_write(args, scratchpad, call_id)
+    if name == "ReadFromScratchpad":
+        return None, handle_read(args, scratchpad, call_id)
+    if name == "ClearScratchpad":
+        return handle_clear(args, call_id, scratchpad)
 
-
-def _handle_clear(args: dict, call_id: str):
-    return handle_clear(args, call_id)
+    content = str(await _TOOL_BY_NAME[name].ainvoke(args))
+    return None, ToolMessage(content=content, tool_call_id=call_id)
 
 
 async def tool_node(state: ScratchpadState) -> dict:
@@ -55,32 +60,20 @@ async def tool_node(state: ScratchpadState) -> dict:
     scratchpad_update = None
     scratchpad_file = getattr(state, "scratchpad_file", "")
 
-    for tc in last_message.tool_calls:  # type: ignore
-        name = tc.get("name")
-        args = tc.get("args")
-        call_id_raw = tc.get("id")
-        call_id = str(call_id_raw) if call_id_raw is not None else "unknown"
-
-        if name == "WriteToScratchpad":
-            scratchpad_update, msg = _handle_write(args, state, call_id)
-        elif name == "ReadFromScratchpad":
-            msg = _handle_read(args, state, call_id)
-        elif name == "ClearScratchpad":
-            scratchpad_update, msg = _handle_clear(args, call_id)
-        else:
-            msg = ToolMessage(
-                content=str(await _TOOL_BY_NAME[name].ainvoke(args)),
-                tool_call_id=call_id,
-            )
+    for tc in last_message.tool_calls:
+        call_id = str(tc.get("id") or "unknown")
+        update, msg = await _dispatch(tc["name"], tc["args"], state, call_id)
         result_messages.append(msg)
+        if update is not None:
+            scratchpad_update = update
 
-    update: dict = {"messages": result_messages}
+    result: dict = {"messages": result_messages}
     if scratchpad_update is not None:
-        update["scratchpad"] = scratchpad_update
+        result["scratchpad"] = scratchpad_update
         if scratchpad_file:
             _save_scratchpad(scratchpad_update, scratchpad_file)
 
-    return update
+    return result
 
 
 def tools_condition(state: ScratchpadState) -> str:

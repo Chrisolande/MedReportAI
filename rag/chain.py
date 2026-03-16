@@ -11,7 +11,7 @@ from langchain_deepseek import ChatDeepSeek
 
 @dataclass
 class RAGOutput:
-    """RAG pipeline wrapper handling retrieval, generation, and context tracking."""
+    """RAG pipeline handling retrieval, generation, and context tracking."""
 
     prompt_name: str
     retriever: Any
@@ -39,7 +39,7 @@ class RAGOutput:
                 )
             self.llm_instance = ChatDeepSeek(model=self.llm_model)
         except Exception as e:
-            raise RuntimeError(f"Failed to initialize the RAG: {e}") from e
+            raise RuntimeError(f"Failed to initialize RAG: {e}") from e
 
     @staticmethod
     def _format_docs(docs: list[Document]) -> str:
