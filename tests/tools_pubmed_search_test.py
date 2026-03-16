@@ -1,6 +1,13 @@
 import asyncio
 
+import pandas as pd
+
 from tools import pubmed_search
+
+
+def _make_df(records):
+    """Build a real pandas DataFrame from a list of dicts."""
+    return pd.DataFrame(records)
 
 
 def test_pubmed_scraper_tool_rejects_empty_query():
@@ -27,10 +34,7 @@ def test_pubmed_scraper_tool_handles_empty_result_set(monkeypatch):
             pass
 
         async def scrape_async(self):
-            class EmptyFrame:
-                empty = True
-
-            return EmptyFrame()
+            return _make_df([])
 
     monkeypatch.setenv("ENTREZ_EMAIL", "research@example.org")
     monkeypatch.setattr(pubmed_search, "PubMedScraper", DummyScraper)
@@ -43,24 +47,18 @@ def test_pubmed_scraper_tool_handles_empty_result_set(monkeypatch):
 
 
 def test_pubmed_scraper_tool_handles_records_without_titles(monkeypatch):
-    class DummyFrame:
-        empty = False
-
-        def head(self, _count):
-            return [(0, {"Title": "", "Journal": "J", "Publication Date": "2020"})]
-
-        def __len__(self):
-            return 1
+    df = _make_df([{"Title": "", "Journal": "J", "Publication Date": "2020"}])
 
     class DummyScraper:
         def __init__(self, **kwargs):
             pass
 
         async def scrape_async(self):
-            return DummyFrame()
+            return df
 
     monkeypatch.setenv("ENTREZ_EMAIL", "research@example.org")
     monkeypatch.setattr(pubmed_search, "PubMedScraper", DummyScraper)
+    monkeypatch.setattr(pubmed_search, "_deduplicate_csv", lambda path: None)
 
     result = asyncio.run(
         pubmed_search.pubmed_scraper_tool.ainvoke({"search_query": "nutrition"})
@@ -72,34 +70,27 @@ def test_pubmed_scraper_tool_handles_records_without_titles(monkeypatch):
 def test_pubmed_scraper_tool_returns_formatted_output(monkeypatch):
     captured = {}
 
-    class DummyFrame:
-        empty = False
-
-        def head(self, _count):
-            return [
-                (
-                    0,
-                    {
-                        "Title": "Study Title",
-                        "Journal": "The Journal",
-                        "Publication Date": "2024",
-                        "Url": "https://example.org/study",
-                    },
-                )
-            ]
-
-        def __len__(self):
-            return 1
+    df = _make_df(
+        [
+            {
+                "Title": "Study Title",
+                "Journal": "The Journal",
+                "Publication Date": "2024",
+                "Url": "https://example.org/study",
+            }
+        ]
+    )
 
     class DummyScraper:
         def __init__(self, **kwargs):
             captured.update(kwargs)
 
         async def scrape_async(self):
-            return DummyFrame()
+            return df
 
     monkeypatch.setenv("ENTREZ_EMAIL", "research@example.org")
     monkeypatch.setattr(pubmed_search, "PubMedScraper", DummyScraper)
+    monkeypatch.setattr(pubmed_search, "_deduplicate_csv", lambda path: None)
 
     result = asyncio.run(
         pubmed_search.pubmed_scraper_tool.ainvoke(
@@ -111,6 +102,41 @@ def test_pubmed_scraper_tool_returns_formatted_output(monkeypatch):
     assert captured["output_file"].startswith("data/pubmed_live_child_trauma")
     assert "DATASET_PATH:" in result
     assert "https://example.org/study" in result
+
+
+def test_pubmed_scraper_tool_uses_csv_path_when_provided(monkeypatch):
+    captured = {}
+
+    df = _make_df(
+        [
+            {
+                "Title": "Study",
+                "Journal": "J",
+                "Publication Date": "2024",
+                "Url": "https://example.org/s",
+            }
+        ]
+    )
+
+    class DummyScraper:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        async def scrape_async(self):
+            return df
+
+    monkeypatch.setenv("ENTREZ_EMAIL", "research@example.org")
+    monkeypatch.setattr(pubmed_search, "PubMedScraper", DummyScraper)
+    monkeypatch.setattr(pubmed_search, "_deduplicate_csv", lambda path: None)
+
+    result = asyncio.run(
+        pubmed_search.pubmed_scraper_tool.ainvoke(
+            {"search_query": "nutrition", "csv_path": "data/pubmed_run_abc.csv"}
+        )
+    )
+
+    assert captured["output_file"] == "data/pubmed_run_abc.csv"
+    assert "DATASET_PATH: data/pubmed_run_abc.csv" in result
 
 
 def test_pubmed_scraper_tool_returns_failure_message_on_exception(monkeypatch):
@@ -128,7 +154,7 @@ def test_pubmed_scraper_tool_returns_failure_message_on_exception(monkeypatch):
         pubmed_search.pubmed_scraper_tool.ainvoke({"search_query": "nutrition"})
     )
 
-    assert "PubMed scraping failed: service unavailable" == result
+    assert result == "PubMed scraping failed after retries: service unavailable"
 
 
 def test_safe_slug():
@@ -136,21 +162,18 @@ def test_safe_slug():
 
 
 def test_format_pubmed_rows():
-    class DF:
-        def head(self, n):
-            return [
-                (
-                    0,
-                    {
-                        "Title": "T",
-                        "Journal": "J",
-                        "Publication Date": "2020",
-                        "Url": "U",
-                    },
-                )
-            ]
+    df = _make_df(
+        [
+            {
+                "Title": "T",
+                "Journal": "J",
+                "Publication Date": "2020",
+                "Url": "U",
+            }
+        ]
+    )
 
-    rows = pubmed_search._format_pubmed_rows(DF())
+    rows = pubmed_search._format_pubmed_rows(df)
     assert rows and "**T**" in rows[0]
 
 

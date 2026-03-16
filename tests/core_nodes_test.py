@@ -27,7 +27,8 @@ class TestNodes(unittest.TestCase):
             sections=[
                 DummySection("A", research=True),
                 DummySection("B", research=False),
-            ]
+            ],
+            run_id="test1234",
         )
         result = nodes.initiate_section_writing(state)
         self.assertIsInstance(result, list)
@@ -39,7 +40,9 @@ class TestNodes(unittest.TestCase):
 
     def test_initiate_final_section_writing(self):
         state = DummyState(
-            sections=[DummySection("A", research=False)], completed_sections_context=[1]
+            sections=[DummySection("A", research=False)],
+            completed_sections_context=[1],
+            run_id="test1234",
         )
         out = nodes.initiate_final_section_writing(state)
         self.assertIsInstance(out, list)

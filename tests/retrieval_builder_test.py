@@ -1,4 +1,3 @@
-from pathlib import Path
 from types import SimpleNamespace
 
 from langchain_core.documents import Document
@@ -213,7 +212,6 @@ def test_get_retriever_resolves_documents_and_persist_directory(monkeypatch):
         "split_documents",
         lambda docs, embeddings: [Document(page_content="chunk", metadata={})],
     )
-    monkeypatch.setattr(retrieval_builder, "_dataset_hash", lambda path: "hash123")
 
     def fake_build_retriever(docs, embeddings, retriever_config, persist_directory):
         captured["docs"] = docs
@@ -228,6 +226,6 @@ def test_get_retriever_resolves_documents_and_persist_directory(monkeypatch):
     assert result == "retriever"
     assert captured["embeddings"] == "emb"
     assert captured["docs"][0].page_content == "chunk"
-    assert captured["persist_directory"] == str(
-        Path(retrieval_builder.config.paths.faiss_index_dir) / "hash123"
+    assert (
+        captured["persist_directory"] == retrieval_builder.config.paths.faiss_index_dir
     )

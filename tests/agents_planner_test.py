@@ -5,7 +5,7 @@ from core.states import ReportState, SectionState
 
 
 def test_generate_plan_returns_sections(monkeypatch):
-    state = ReportState(sections=None)
+    state = ReportState(sections=None, topic="child malnutrition")
     config = {}
 
     class DummyPlanner:
@@ -23,6 +23,8 @@ def test_generate_plan_returns_sections(monkeypatch):
     )
     result = asyncio.run(planner.generate_plan(state, config))
     assert "sections" in result
+    assert "run_id" in result
+    assert len(result["run_id"]) == 8
 
 
 def test_write_final_sections(monkeypatch):

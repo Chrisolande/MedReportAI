@@ -16,12 +16,12 @@ def test_handle_write_append_and_replace_modes():
 
 def test_handle_read_and_clear_responses():
     read_msg = handle_read({"query": "keywords"}, "notes here", "1")
-    unchanged, cancel_msg = handle_clear({"confirm": False}, "2")
-    cleared, ok_msg = handle_clear({"confirm": True}, "3")
+    unchanged, cancel_msg = handle_clear({"confirm": False}, "2", "existing notes")
+    cleared, ok_msg = handle_clear({"confirm": True}, "3", "existing notes")
 
     assert "query: 'keywords'" in read_msg.content
     assert "notes here" in read_msg.content
-    assert unchanged is None
+    assert unchanged == "existing notes"
     assert "cancelled" in cancel_msg.content
     assert cleared == ""
     assert "cleared successfully" in ok_msg.content

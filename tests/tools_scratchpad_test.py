@@ -1,5 +1,7 @@
 import asyncio
 
+from langchain_core.messages import ToolMessage
+
 from tools import scratchpad
 
 
@@ -19,8 +21,11 @@ class DummyState:
 def test_tool_node_handles_write(monkeypatch):
     monkeypatch.setattr(
         scratchpad,
-        "_handle_write",
-        lambda args, state, call_id: ("new", type("Msg", (), {"content": "done"})()),
+        "handle_write",
+        lambda args, scratchpad_text, call_id: (
+            "new",
+            ToolMessage(content="done", tool_call_id=call_id),
+        ),
     )
     state = DummyState()
     result = asyncio.run(scratchpad.tool_node(state))
