@@ -1,6 +1,6 @@
 <div align="center">
 
-# \N{DNA DOUBLE HELIX} MedReportAI
+# 🧬 MedReportAI
 
 **AI-powered biomedical research report generator**
 
@@ -17,23 +17,23 @@ the web.*
 
 ---
 
-## \N{SPARKLES} Features
+## ✨ Features
 
 | Feature                                        | Description                                                                                           |
 |------------------------------------------------|-------------------------------------------------------------------------------------------------------|
-| \N{MICROSCOPE} **Automated Report Planning**       | DSPy-driven planner generates structured section outlines from a single research query                |
-| \N{SATELLITE ANTENNA} **Triple-Source Retrieval**         | Live PubMed search via BioPython Entrez, local PubMed FAISS index, and Tavily web search              |
-| \N{BRAIN} **Parallel Agent Architecture**     | LangGraph orchestrates multiple section-writing agents concurrently with tool access                  |
-| \N{MEMO} **Scratchpad Protocol**             | Agents follow a disciplined extract → note → synthesise workflow for traceable research               |
-| \N{CLOCKWISE RIGHTWARDS AND LEFTWARDS OPEN CIRCLE ARROWS} **Hybrid Retrieval (BM25 + Dense)** | Ensemble retriever with cross-encoder reranking for high-precision document retrieval                 |
-| \N{LEFT-POINTING MAGNIFYING GLASS} **Live PubMed Search**              | On-demand querying of PubMed with automatic CSV persistence and active-source switching               |
-| \N{BAR CHART} **Unified Dataset Per Run**         | Single CSV and FAISS index per run, all section branches share one deduplicated dataset               |
-| \N{INPUT NUMBERS} **Numbered Citation System**        | Academic-style `[N]` inline citations with a clean References section at the end                      |
-| \N{WHITE HEAVY CHECK MARK} **Pre-synthesis Verification**          | Evidence quality gate checks source count, quantitative depth, and scratchpad length before synthesis |
+| 🔬 **Automated Report Planning**       | DSPy-driven planner generates structured section outlines from a single research query                |
+| 📡 **Triple-Source Retrieval**         | Live PubMed search via BioPython Entrez, local PubMed FAISS index, and Tavily web search              |
+| 🧠 **Parallel Agent Architecture**     | LangGraph orchestrates multiple section-writing agents concurrently with tool access                  |
+| 📝 **Scratchpad Protocol**             | Agents follow a disciplined extract → note → synthesise workflow for traceable research               |
+| 🔁 **Hybrid Retrieval (BM25 + Dense)** | Ensemble retriever with cross-encoder reranking for high-precision document retrieval                 |
+| 🔎 **Live PubMed Search**              | On-demand querying of PubMed with automatic CSV persistence and active-source switching               |
+| 📊 **Unified Dataset Per Run**         | Single CSV and FAISS index per run, all section branches share one deduplicated dataset               |
+| 🔢 **Numbered Citation System**        | Academic-style `[N]` inline citations with a clean References section at the end                      |
+| ✅ **Pre-synthesis Verification**          | Evidence quality gate checks source count, quantitative depth, and scratchpad length before synthesis |
 
 ---
 
-## \N{BUILDING CONSTRUCTION} Architecture
+## 🏗 Architecture
 
 MedReportAI is a multi-agent LangGraph pipeline with three main phases:
 
@@ -111,7 +111,7 @@ in the body text.
 
 ---
 
-## \N{OPEN FILE FOLDER} Project Structure
+## 📁 Project Structure
 
 ```
 MedReportAI/
@@ -165,7 +165,7 @@ MedReportAI/
 
 ---
 
-## \N{ROCKET} Getting Started
+## 🚀 Getting Started
 
 ### Prerequisites
 
@@ -199,7 +199,7 @@ ENTREZ_EMAIL=your_email@example.com  # Optional: for live PubMed search
 
 ---
 
-## \N{DESKTOP COMPUTER} Usage
+## 🖥 Usage
 
 ### LangGraph Studio
 
@@ -234,7 +234,7 @@ print(result["final_report"])
 
 ---
 
-## \N{GEAR} Configuration
+## ⚙ Configuration
 
 All settings are centralized in `config.py`:
 
@@ -251,7 +251,7 @@ All settings are centralized in `config.py`:
 
 ---
 
-## \N{HAMMER AND WRENCH} Tech Stack
+## 🛠 Tech Stack
 
 | Layer                | Technology                                                                             |
 |----------------------|----------------------------------------------------------------------------------------|
@@ -265,7 +265,7 @@ All settings are centralized in `config.py`:
 
 ---
 
-## \N{TEST TUBE} Development
+## 🧪 Development
 
 ```bash
 # Run tests
@@ -281,7 +281,7 @@ uv run radon cc -s -a core/ tools/ scripts/
 
 ---
 
-## \N{PAGE FACING UP} License
+## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
 
@@ -289,6 +289,6 @@ This project is licensed under the [MIT License](LICENSE).
 
 <div align="center">
 
-**Built with \N{HEAVY BLACK HEART} by [@Chrisolande](https://github.com/Chrisolande)**
+**Built with ❤ by [@Chrisolande](https://github.com/Chrisolande)**
 
 </div>
