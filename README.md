@@ -1,72 +1,85 @@
 <div align="center">
 
-# &#x1F9EC; MedReportAI
+# \N{DNA DOUBLE HELIX} MedReportAI
 
 **AI-powered biomedical research report generator**
 
-*Parallel LangGraph agents that plan → retrieve → synthesise → compile evidence-based medical reports from PubMed and the web.*
+*Parallel LangGraph agents that plan → retrieve → synthesise → compile evidence-based medical reports from PubMed and
+the web.*
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![LangGraph](https://img.shields.io/badge/LangGraph-pipeline-1C3C3C?logo=langchain&logoColor=white)](https://github.com/langchain-ai/langgraph)
 [![DSPy](https://img.shields.io/badge/DSPy-prompts-FF6F00)](https://dspy-docs.vercel.app/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-UI-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![DeepSeek](https://img.shields.io/badge/DeepSeek-LLM-4A90D9)](https://www.deepseek.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-<!-- SCREENSHOT: Add a hero screenshot of the Streamlit UI here -->
-<!-- ![MedReportAI Screenshot](docs/images/screenshot.png) -->
 
 </div>
 
 ---
 
-## &#x2728; Features
+## \N{SPARKLES} Features
 
-| Feature | Description |
-|---|---|
-| &#x1F52C; **Automated Report Planning** | DSPy-driven planner generates structured section outlines from a single research query |
-| &#x1F4E1; **Triple-Source Retrieval** | Live PubMed search via BioPython Entrez, local PubMed FAISS index, and Tavily web search |
-| &#x1F9E0; **Parallel Agent Architecture** | LangGraph orchestrates multiple section-writing agents concurrently with tool access |
-| &#x1F4DD; **Scratchpad Protocol** | Agents follow a disciplined extract → note → synthesise workflow for traceable research |
-| &#x1F504; **Hybrid Retrieval (BM25 + Dense)** | Ensemble retriever with cross-encoder reranking for high-precision document retrieval |
-| &#x1F50E; **Live PubMed Search** | On-demand querying of PubMed with automatic CSV persistence and active-source switching |
-| &#x1F4CA; **Real-Time Pipeline UI** | Streamlit dashboard with live phase tracking: Planning → Research → Synthesis → Assembly |
-| &#x1F4E5; **Multi-Format Export** | Download final reports as Markdown, PDF, or plain text |
-| &#x1F5C2; **Report History** | Browse and revisit previously generated reports from the sidebar archive |
+| Feature                                        | Description                                                                                           |
+|------------------------------------------------|-------------------------------------------------------------------------------------------------------|
+| \N{MICROSCOPE} **Automated Report Planning**       | DSPy-driven planner generates structured section outlines from a single research query                |
+| \N{SATELLITE ANTENNA} **Triple-Source Retrieval**         | Live PubMed search via BioPython Entrez, local PubMed FAISS index, and Tavily web search              |
+| \N{BRAIN} **Parallel Agent Architecture**     | LangGraph orchestrates multiple section-writing agents concurrently with tool access                  |
+| \N{MEMO} **Scratchpad Protocol**             | Agents follow a disciplined extract → note → synthesise workflow for traceable research               |
+| \N{CLOCKWISE RIGHTWARDS AND LEFTWARDS OPEN CIRCLE ARROWS} **Hybrid Retrieval (BM25 + Dense)** | Ensemble retriever with cross-encoder reranking for high-precision document retrieval                 |
+| \N{LEFT-POINTING MAGNIFYING GLASS} **Live PubMed Search**              | On-demand querying of PubMed with automatic CSV persistence and active-source switching               |
+| \N{BAR CHART} **Unified Dataset Per Run**         | Single CSV and FAISS index per run, all section branches share one deduplicated dataset               |
+| \N{INPUT NUMBERS} **Numbered Citation System**        | Academic-style `[N]` inline citations with a clean References section at the end                      |
+| \N{WHITE HEAVY CHECK MARK} **Pre-synthesis Verification**          | Evidence quality gate checks source count, quantitative depth, and scratchpad length before synthesis |
 
 ---
 
-## &#x1F3D7; Architecture
+## \N{BUILDING CONSTRUCTION} Architecture
+
+MedReportAI is a multi-agent LangGraph pipeline with three main phases:
+
+### Two-Phase Section Writer
+
+Each research section runs a two-phase loop inside a parallel sub-graph:
+
+1. **Phase 1 - Tool-Based Research**: The section agent uses PubMed search, FAISS retrieval, and web search tools to
+   gather evidence into a scratchpad. A verification gate checks the scratchpad before advancing.
+2. **Phase 2 - Synthesis**: The agent writes the final section from the scratchpad, using `[N]` numbered citations that
+   map to the shared citation registry.
+
+### Unified Dataset Per Run
+
+Every pipeline run receives a unique `run_id`. All `pubmed_scraper_tool` calls within a run write to one shared CSV
+file, deduplicated by PMID. A single FAISS index reflects this unified dataset and is queried by `retriever_tool` across
+all section branches.
+
+### Numbered Citation System
+
+A citation registry (`dict[str, int]`) maps each unique source URL to a stable number. Section agents emit `[N]` inline
+citations during synthesis. The final report includes a References section containing only sources whose `[N]` appears
+in the body text.
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Streamlit UI                          │
-│  ┌─────────┐  ┌──────────────┐  ┌───────────────────┐  │
-│  │ Sidebar  │  │ Query Input  │  │ Pipeline Tracker  │  │
-│  └─────────┘  └──────┬───────┘  └───────────────────┘  │
-└──────────────────────┼──────────────────────────────────┘
-                       ▼
 ┌──────────────────────────────────────────────────────────┐
-│                  LangGraph Pipeline                       │
+│                   LangGraph Pipeline                      │
 │                                                          │
 │  ┌──────────────┐    ┌─────────────────────────────┐     │
 │  │ Plan Report  │───▶│ Build Sections (parallel)   │     │
 │  │  (DSPy)      │    │  ┌─────────┐  ┌─────────┐  │     │
-│  └──────────────┘    │  │ Agent 1 │  │ Agent N │  │     │
-│                      │  │ write → │  │ write → │  │     │
-│                      │  │ tools → │  │ tools → │  │     │
-│                      │  │ scratch │  │ scratch │  │     │
+│  └──────────────┘    │  │Section 1│  │Section N│  │     │
+│                      │  │Phase 1: │  │Phase 1: │  │     │
+│                      │  │ research│  │ research│  │     │
+│                      │  │Phase 2: │  │Phase 2: │  │     │
+│                      │  │ synth.  │  │ synth.  │  │     │
 │                      │  └─────────┘  └─────────┘  │     │
-│                      └────────────┬────────────────┘     ��
+│                      └────────────┬────────────────┘     │
 │                                   ▼                      │
 │  ┌──────────────┐    ┌─────────────────────────────┐     │
 │  │ Compile      │◀───│ Write Final Sections        │     │
 │  │ Final Report │    │ (intro, conclusion)          │     │
-│  └──────────────┘    └─────────────────────────────┘     │
+│  │ + References │    └─────────────────────────────┘     │
+│  └──────────────┘                                        │
 └──────────────────────────────────────────────────────────┘
-                       │
-       ┌───────────────┼───────────────┐
-       ▼               ▼               ▼
+       │               │               │
 ┌────────────┐  ┌────────────┐  ┌────────────┐
 │ PubMed RAG │  │ Live       │  │ Tavily     │
 │ (FAISS +   │  │ PubMed     │  │ Web        │
@@ -75,81 +88,84 @@
        │               │               │
        └───────────────┼───────────────┘
                        ▼
-                ┌────────────┐
-                │ Scratchpad │
-                │ Memory     │
-                └────────────┘
+          ┌──────────────────────┐
+          │ Unified CSV + FAISS  │
+          │ (one per run_id)     │
+          └──────────────────────┘
 ```
+
+### Graph Topology
+
+- **Entry**: `generate_plan`
+- **Fan-out**: `initiate_section_writing` → parallel `build_section_with_tools` sub-graphs
+- **Gather**: `gather_completed_sections`
+- **Fan-out**: `initiate_final_section_writing` → parallel `write_final_sections`
+- **Compile**: `compile_final_report`
+- **Validate**: `validate_report_quality`
+- **Exit**: `END`
+
+<div align="center">
+  <img src="assets/graph.png" alt="LangGraph pipeline topology" width="300"/>
+  <p><em>LangGraph Studio view of the pipeline graph</em></p>
+</div>
 
 ---
 
-## &#x1F4C1; Project Structure
+## \N{OPEN FILE FOLDER} Project Structure
 
 ```
 MedReportAI/
 ├── app.py                  # LangGraph pipeline definition & entry point
-├── streamlit_app.py        # Streamlit web application
 ├── config.py               # Model, retriever, and path configuration
-├── langgraph.json          # LangGraph deployment config
+├── langgraph.json          # LangGraph Studio deployment config
 ├── pyproject.toml          # Project metadata & dependencies
-├── report_history.json     # Persisted report archive
 │
-├── .streamlit/
-│   └── config.toml         # Streamlit theme (dark + green accents)
-│
-├── agents/                 # High-level agent logic
+├── agents/
 │   └── planner.py          # Report plan generation & final section writing (DSPy)
 │
-├── core/                   # Pipeline internals
-│   ├── nodes.py            # Graph node functions (compile, gather, initiate)
-│   ├── schemas.py          # Pydantic schemas (scratchpad operations, state models)
-│   ├── signatures.py       # DSPy signatures (ReportPlanner, SectionWriter, etc.)
+├── core/
+│   ├── nodes.py            # Graph node functions (fan-out, synthesis, compile)
+│   ├── quality.py          # Citation validation, reference building, truncation detection
+│   ├── schemas.py          # Pydantic schemas (scratchpad ops, Section model)
+│   ├── signatures.py       # DSPy signatures (ReportPlanner, FinalInstructions)
 │   ├── states.py           # LangGraph state definitions with reducer annotations
-│   └── tool_node.py        # Tool execution node with routing logic
+│   ├── tool_node.py        # Tool execution node with routing + citation registry
+│   └── verification.py     # Pre-synthesis verification gate
 │
-├── rag/                    # Retrieval-Augmented Generation
+├── rag/
 │   ├── chain.py            # RAG chain construction
 │   ├── embeddings.py       # FastEmbed wrapper for LangChain
 │   ├── retrieval_builder.py # Ensemble retriever + cross-encoder reranker
 │   ├── retrieval_formatter.py # Structured report from retriever results
 │   └── source_formatter.py # Web search result formatting & deduplication
 │
-├── tools/                  # LangChain tools available to agents
-│   ├── pubmed_search.py    # Live PubMed search with CSV persistence & active-source switching
+├── tools/
+│   ├── pubmed_search.py    # Live PubMed search with unified CSV persistence
 │   ├── retrieval.py        # PubMed FAISS retriever tool
 │   ├── web_search.py       # Tavily web search tool
 │   ├── scratchpad.py       # Read/write/clear scratchpad operations
 │   └── query_generator.py  # DSPy multi-query generator
 │
-├── prompts/                # Prompt engineering
+├── prompts/
 │   ├── planner.py          # Context persona & report structure prompts
 │   ├── section_writer.py   # Two-phase section writing protocol
 │   └── scraper.py          # PubMed query parsing prompt
 │
-├── scripts/                # Standalone utilities
+├── scripts/
 │   └── pubmed_scraper.py   # PubMed article scraper (BioPython Entrez + DeepSeek)
 │
-├── ui/                     # Streamlit UI components
-│   ├── exports.py          # PDF/Markdown/text export functionality
-│   ├── history.py          # Report archive (JSON persistence)
-│   ├── pipeline.py         # Async streaming runner + phase tracker
-│   ├── sidebar.py          # Config panel & report archive browser
-│   └── styles.py           # Custom CSS (dark theme with green accents)
-│
-├── utils/                  # Shared utilities
+├── utils/
 │   ├── data_processing.py  # CSV loading, semantic chunking, FAISS indexing
 │   ├── formatting.py       # Rich console formatters
-│   └── helpers.py          # Environment setup, logging, file helpers
+│   ├── helpers.py          # Environment setup, logging, file helpers
+│   └── scratchpad_helpers.py # Scratchpad read/write/clear handlers
 │
-├── outputs/                # Generated scratchpads & FAISS indexes
-│   └── scratchpads/        # Per-section scratchpad markdown files
-│
-└── downloaded_docs/        # Downloaded research PDF documents
+└── tests/                  # Detailed test suite
 ```
 
 ---
 
-## &#x1F680; Getting Started
+## \N{ROCKET} Getting Started
 
 ### Prerequisites
 
@@ -161,18 +177,13 @@ MedReportAI/
 ### Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/Chrisolande/MedReportAI.git
 cd MedReportAI
 
-# Create a virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+# Install with uv (recommended)
+uv sync --extra dev
 
-# Install dependencies
-pip install -e .
-
-# Install dev dependencies (optional)
+# Or with pip
 pip install -e ".[dev]"
 ```
 
@@ -186,43 +197,24 @@ TAVILY_API_KEY=your_tavily_api_key_here
 ENTREZ_EMAIL=your_email@example.com  # Optional: for live PubMed search
 ```
 
-### Prepare Data
-
-You can either use the **live PubMed search tool** (which fetches articles on-demand during pipeline runs) or pre-populate your data using the built-in scraper:
-
-```python
-from scripts.pubmed_scraper import PubMedScraper
-
-scraper = PubMedScraper(
-    email="your_email@example.com",
-    topics=["pediatric health outcomes in conflict settings"],
-)
-df = await scraper.scrape_async()
-```
-
-This fetches articles from PubMed and saves them to `data/pubmed_results.csv`. The retrieval system will automatically build and cache a FAISS vector index from the CSV data on first run.
-
 ---
 
-## &#x1F5A5; Usage
+## \N{DESKTOP COMPUTER} Usage
 
-### Streamlit Web App
+### LangGraph Studio
 
-```bash
-streamlit run streamlit_app.py
+The sole interface is [LangGraph Studio](https://docs.langchain.com/langsmith/studio). Open the project directory in
+LangGraph Studio and invoke the graph with a topic:
+
+```json
+{
+  "topic": "Long-term pediatric health outcomes in conflict settings"
+}
 ```
 
-<!-- SCREENSHOT: Add a screenshot of the running Streamlit app here -->
+The pipeline runs fully autonomously from topic input to final report.
 
-1. Enter a research query (e.g., *"Long-term pediatric health outcomes in conflict settings"*)
-2. Optionally customize the **Context/Persona** and **Report Structure** in the sidebar
-3. Click **▶ Run Pipeline** and watch real-time progress through each phase
-4. Export the final report as **Markdown**, **PDF**, or **Text**
-5. Browse past reports from the **Report Archive** in the sidebar
-
-### LangGraph API
-
-The pipeline is also exposed as a LangGraph-compatible graph:
+### Programmatic API
 
 ```python
 from app import graph
@@ -242,111 +234,61 @@ print(result["final_report"])
 
 ---
 
-## &#x2699; Configuration
+## \N{GEAR} Configuration
 
-All settings are centralized in `config.py` using dataclass-based configs:
+All settings are centralized in `config.py`:
 
-### Model Configuration
-
-| Setting | Default | Description |
-|---|---|---|
-| `deepseek_model` | `deepseek-chat` | LLM model (`deepseek-chat` or `deepseek-reasoner`) |
-| `deepseek_temperature` | `1.3` | Generation temperature |
-| `max_tokens` | `512` | Maximum tokens per LLM call |
-| `embedding_model` | `sentence-transformers/all-MiniLM-L6-v2` | Sentence embedding model (FastEmbed) |
-
-### Retriever Configuration
-
-| Setting | Default | Description |
-|---|---|---|
-| `k` | `15` | Number of documents to retrieve |
-| `sparse_weight` | `0.65` | BM25 weight in ensemble retriever |
-| `dense_weight` | `0.35` | Dense retrieval weight in ensemble |
-| `similarity_threshold` | `0.6` | Minimum similarity for document inclusion |
-| `redundancy_threshold` | `0.95` | Maximum similarity before deduplication |
-| `top_n` | `5` | Documents retained after reranking |
-| `reranker_model` | `Xenova/ms-marco-miniLM-L-6-v2` | Cross-encoder reranker model |
-
-### Report Configuration
-
-The pipeline's persona and report structure are fully customizable at runtime via the Streamlit sidebar or programmatically through `RunnableConfig`:
-
-```python
-config = {
-    "configurable": {
-        "context": "Your custom persona prompt...",
-        "report_organization": "Your custom report structure..."
-    }
-}
-```
+| Setting                | Default                                  | Description                 |
+|------------------------|------------------------------------------|-----------------------------|
+| `deepseek_model`       | `deepseek-chat`                          | LLM model                   |
+| `deepseek_temperature` | `1.3`                                    | Generation temperature      |
+| `max_tokens`           | `512`                                    | Maximum tokens per LLM call |
+| `embedding_model`      | `sentence-transformers/all-MiniLM-L6-v2` | Embedding model (FastEmbed) |
+| `k`                    | `15`                                     | Documents to retrieve       |
+| `sparse_weight`        | `0.65`                                   | BM25 weight in ensemble     |
+| `dense_weight`         | `0.35`                                   | Dense retrieval weight      |
+| `top_n`                | `5`                                      | Documents after reranking   |
 
 ---
 
-## &#x1F6E0; Tech Stack
+## \N{HAMMER AND WRENCH} Tech Stack
 
-| Layer | Technology |
-|---|---|
-| **Orchestration** | [LangGraph](https://github.com/langchain-ai/langgraph)  -  stateful multi-agent pipeline with parallel branches |
-| **Prompt Framework** | [DSPy](https://dspy-docs.vercel.app/)  -  structured signatures for planning, writing & query generation |
-| **LLM** | [DeepSeek](https://www.deepseek.com/)  -  `deepseek-chat` / `deepseek-reasoner` |
-| **Retrieval** | FAISS + BM25 ensemble with FastEmbed cross-encoder reranking |
-| **Live Search** | [BioPython Entrez](https://biopython.org/)  -  real-time PubMed querying with CSV persistence |
-| **Web Search** | [Tavily](https://tavily.com/)  -  real-time web search with raw content extraction |
-| **Frontend** | [Streamlit](https://streamlit.io/)  -  custom dark theme with live pipeline tracking |
-| **PDF Export** | WeasyPrint  -  styled PDF generation from Markdown |
-| **Logging** | [Loguru](https://github.com/Delgan/loguru)  -  structured logging with file rotation |
-| **Tracing** | [LangSmith](https://smith.langchain.com/)  -  optional observability for tool calls |
+| Layer                | Technology                                                                             |
+|----------------------|----------------------------------------------------------------------------------------|
+| **Orchestration**    | [LangGraph](https://github.com/langchain-ai/langgraph) - stateful multi-agent pipeline |
+| **Prompt Framework** | [DSPy](https://dspy-docs.vercel.app/) - structured signatures                          |
+| **LLM**              | [DeepSeek](https://www.deepseek.com/)                                                  |
+| **Retrieval**        | FAISS + BM25 ensemble with FastEmbed reranking                                         |
+| **Live Search**      | [BioPython Entrez](https://biopython.org/) - real-time PubMed                          |
+| **Web Search**       | [Tavily](https://tavily.com/) - web search with raw content                            |
+| **Tracing**          | [LangSmith](https://smith.langchain.com/) - observability                              |
 
 ---
 
-## &#x1F9EA; Development
+## \N{TEST TUBE} Development
 
 ```bash
-# Install dev dependencies
-pip install -e ".[dev]"
+# Run tests
+uv run pytest tests/ -v
 
-# Run linters & formatters
-ruff check .
-black .
-isort .
-mypy .
+# Lint
+uvx ruff check .
+uvx ruff format .
 
-# Pre-commit hooks (configured in .pre-commit-config.yaml)
-pre-commit install
-pre-commit run --all-files
+# Complexity check
+uv run radon cc -s -a core/ tools/ scripts/
 ```
-
-The project uses a comprehensive pre-commit configuration including:
-
-- **Black** (line length 88, Python 3.12 target)
-- **isort** (Black-compatible profile)
-- **autoflake** (remove unused imports/variables)
-- **Ruff** (fast Python linter)
-- **mypy** (static type checking)
-- **nbqa** (notebook linting)
 
 ---
 
-## &#x1F4C4; License
+## \N{PAGE FACING UP} License
 
 This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-## &#x1F91D; Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
 <div align="center">
 
-**Built with &#x1F9EC; by [@Chrisolande](https://github.com/Chrisolande)**
+**Built with \N{HEAVY BLACK HEART} by [@Chrisolande](https://github.com/Chrisolande)**
 
 </div>

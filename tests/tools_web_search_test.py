@@ -11,41 +11,19 @@ class DummyTavily:
         return {"result": args["query"]}
 
 
-def test_tavily_search_async(monkeypatch):
+def test_run_tavily_returns_result(monkeypatch):
     monkeypatch.setattr(web_search, "TavilySearch", DummyTavily)
-    monkeypatch.setattr(
-        web_search,
-        "generate_queries",
-        lambda question, num_queries: [question] * num_queries,
-    )
 
     async def run():
-        results = await web_search.tavily_search_async(
-            "q", max_results=1, num_queries=2
+        result = await web_search._run_tavily(
+            "q", max_results=1, include_raw_content=True
         )
-        assert isinstance(results, list)
+        assert result == {"result": "q"}
 
     asyncio.run(run())
 
 
-def test_tavily_search_async_falls_back_when_query_generation_fails(monkeypatch):
-    monkeypatch.setattr(web_search, "TavilySearch", DummyTavily)
-
-    def explode(question, num_queries):
-        raise RuntimeError("generation failed")
-
-    monkeypatch.setattr(web_search, "generate_queries", explode)
-
-    async def run():
-        results = await web_search.tavily_search_async(
-            "q", max_results=1, num_queries=3
-        )
-        assert results == [{"result": "q"}]
-
-    asyncio.run(run())
-
-
-def test_tavily_search_async_returns_empty_list_on_error(monkeypatch):
+def test_run_tavily_returns_empty_list_on_error(monkeypatch):
     class BrokenTavily:
         def __init__(self, **kwargs):
             raise RuntimeError("tavily unavailable")
@@ -53,18 +31,25 @@ def test_tavily_search_async_returns_empty_list_on_error(monkeypatch):
     monkeypatch.setattr(web_search, "TavilySearch", BrokenTavily)
 
     async def run():
-        results = await web_search.tavily_search_async("q")
-        assert results == []
+        result = await web_search._run_tavily(
+            "q", max_results=1, include_raw_content=True
+        )
+        assert result == []
 
     asyncio.run(run())
+
+
+def test_web_search_returns_empty_for_blank_query():
+    result = asyncio.run(web_search.web_search.ainvoke({"search_query": "   "}))
+    assert result == []
 
 
 def test_web_search_formats_search_results(monkeypatch):
     captured = {}
 
-    async def fake_search(*args, **kwargs):
-        captured["args"] = args
-        captured["kwargs"] = kwargs
+    async def fake_run_tavily(query, max_results, include_raw_content):
+        captured["query"] = query
+        captured["max_results"] = max_results
         return [{"results": [{"url": "https://example.org", "title": "Source"}]}]
 
     class DummyFormatter:
@@ -75,7 +60,7 @@ def test_web_search_formats_search_results(monkeypatch):
             captured["search_response"] = search_response
             return "formatted"
 
-    monkeypatch.setattr(web_search, "tavily_search_async", fake_search)
+    monkeypatch.setattr(web_search, "_run_tavily", fake_run_tavily)
     monkeypatch.setattr(web_search, "SourceFormatter", DummyFormatter)
 
     result = asyncio.run(
@@ -91,11 +76,13 @@ def test_web_search_formats_search_results(monkeypatch):
 
     assert result == "formatted"
     assert captured["markdown_output"] is True
-    assert captured["search_response"][0]["results"][0]["url"] == "https://example.org"
+    assert (
+        captured["search_response"][0][0]["results"][0]["url"] == "https://example.org"
+    )
 
 
 def test_web_search_returns_empty_list_when_formatter_fails(monkeypatch):
-    async def fake_search(*args, **kwargs):
+    async def fake_run_tavily(query, max_results, include_raw_content):
         return [{"results": []}]
 
     class BrokenFormatter:
@@ -105,7 +92,7 @@ def test_web_search_returns_empty_list_when_formatter_fails(monkeypatch):
         def deduplicate_and_format_sources(self, search_response):
             raise RuntimeError("formatting failed")
 
-    monkeypatch.setattr(web_search, "tavily_search_async", fake_search)
+    monkeypatch.setattr(web_search, "_run_tavily", fake_run_tavily)
     monkeypatch.setattr(web_search, "SourceFormatter", BrokenFormatter)
 
     result = asyncio.run(
