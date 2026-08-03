@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from IPython.display import Markdown, display
 from loguru import logger
-from typing_extensions import Any
+from typing import Any
 
 
 @dataclass

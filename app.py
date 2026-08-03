@@ -1,7 +1,7 @@
 """Entry point for MedReportAI.
 
-Boots the environment, constructs the LangGraph pipeline, and exposes
-``graph`` so that ``langgraph.json`` can reference ``app:graph``.
+Boots the environment, constructs the LangGraph pipeline, and exposes ``graph`` so that
+``langgraph.json`` can reference ``app:graph``.
 """
 
 from langgraph.graph import END, StateGraph

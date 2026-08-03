@@ -22,7 +22,6 @@ def setup_environment():
 
     Configures warnings, async support, and logging.
     """
-
     # Suppress warnings
     warnings.filterwarnings("ignore")
 

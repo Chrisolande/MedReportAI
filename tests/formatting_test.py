@@ -1,6 +1,6 @@
 import unittest
 
-import utils.formatting as formatting
+from utils import formatting
 
 
 class DummyMessage:

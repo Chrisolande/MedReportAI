@@ -3,7 +3,8 @@ from typing import Annotated
 
 from langchain_core.messages import AnyMessage
 from langgraph.graph import MessagesState
-from typing_extensions import NotRequired, TypedDict
+from typing_extensions import TypedDict
+from typing import NotRequired
 
 from core.schemas import Section
 
@@ -18,8 +19,8 @@ def _merge_citation_registries(
 ) -> dict[str, int]:
     """Merge citation registries, preserving existing numbers and assigning new ones.
 
-    Numbers from ``new`` are intentionally re-assigned sequentially to avoid
-    conflicts when parallel fan-out workers independently number their URLs.
+    Numbers from ``new`` are intentionally re-assigned sequentially to avoid conflicts
+    when parallel fan-out workers independently number their URLs.
     """
     merged = dict(current) if current else {}
     for url, num in (new or {}).items():

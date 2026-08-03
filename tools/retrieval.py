@@ -36,5 +36,5 @@ async def retriever_tool(search_query: str, csv_path: str = ""):
         report = report_gen.create_report(deduplicated_results)
         return report["markdown"]
     except Exception as e:
-        logger.error(f"Error in retriever_tool: {str(e)}")
-        return f"Error retrieving data: {str(e)}"
+        logger.error(f"Error in retriever_tool: {e!s}")
+        return f"Error retrieving data: {e!s}"
