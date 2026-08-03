@@ -22,5 +22,5 @@ def generate_queries(question: str, num_queries: int = 1):
             question=question, num_queries=num_queries
         ).search_queries
     except Exception as e:
-        logger.error(f"An error occurred during query generation: {str(e)}")
+        logger.error(f"An error occurred during query generation: {e!s}")
         return [question]

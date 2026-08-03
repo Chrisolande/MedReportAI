@@ -4,7 +4,6 @@ from pathlib import Path
 
 def ensure_dspy_cache_dir() -> Path:
     """Force DSPy to use a writable cache directory."""
-
     raw = os.environ.get("DSPY_CACHEDIR", "").strip()
     if raw:
         cache_dir = Path(raw).expanduser()
